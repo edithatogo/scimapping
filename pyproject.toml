@@ -34,10 +34,13 @@ dependencies = [
     "dimcli>=1.4", # For Dimensions API
     "openalex>=0.1.0", # For OpenAlex API
     "pybibx", # Placeholder, actual version depends on availability
+    "spacy>=3.0", # For NLP in FundingAnalyzer
     # Note: pybliometrics for Scopus is also a key dependency but has caused issues.
     # Add it here once those are resolvable or if a stable version is confirmed.
     # "pybliometrics>=4.0"
 ]
+# Users of NLP features will also need to download a spaCy model, e.g.:
+# python -m spacy download en_core_web_sm
 
 [project.optional-dependencies]
 dev = [

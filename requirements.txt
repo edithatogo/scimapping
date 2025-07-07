@@ -11,3 +11,5 @@ metaknowledge # For Web of Science, Scopus (if used directly)
 # pybliometrics # For Scopus
 openalex # For OpenAlex (corrected name)
 dimcli # For Dimensions API (corrected name)
+spacy # For NLP in FundingAnalyzer
+# Users will also need to download a spaCy model, e.g.: python -m spacy download en_core_web_sm

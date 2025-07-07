@@ -1,7 +1,8 @@
 import unittest
-from unittest.mock import patch # If we were mocking NLP libraries
+from unittest.mock import patch, MagicMock
 
-from sciencemapping.analysis.funding_analyzer import FundingAnalyzer
+# Import the class to be tested
+from sciencemapping.analysis.funding_analyzer import FundingAnalyzer, SPACY_AVAILABLE, nlp_spacy as global_nlp_spacy
 
 SAMPLE_RECORDS_FOR_FUNDING = [
     { # Record 0
@@ -86,14 +87,65 @@ class TestFundingAnalyzer(unittest.TestCase):
         # Max Planck Society (rec5)
         # Unique: NSF, Wellcome Trust, ERC, NIH (from ack), National Science Foundation (NSF), Max Planck Society
         # Total unique: 6
-        self.assertEqual(stats["unique_funders_identified"], 6)
+        self.assertEqual(stats["unique_funders_identified_normalized"], 5) # NSF, Wellcome Trust, ERC, NIH, Max Planck, ExampleOrg
 
-        top_funders_dict = dict(stats["top_funders"])
-        self.assertEqual(top_funders_dict.get("NSF"), 1) # From record 0
-        self.assertEqual(top_funders_dict.get("National Science Foundation (NSF)"), 1) # From record 2
-        self.assertEqual(top_funders_dict.get("ERC"), 1) # From record 1 (also in rec2 but as "European Research Council (ERC)")
-        self.assertEqual(top_funders_dict.get("European Research Council (ERC)"), 1)
+        top_funders_dict = dict(stats["top_funders_normalized"])
+        self.assertEqual(top_funders_dict.get("National Science Foundation"), 2) # Normalized from "NSF" and "National Science Foundation (NSF)"
+        self.assertEqual(top_funders_dict.get("European Research Council"), 2) # Normalized from "ERC"
+        self.assertEqual(top_funders_dict.get("Wellcome Trust"), 1)
+        self.assertEqual(top_funders_dict.get("NIH (from ack)"), 1) # This won't be normalized by current simple map if "(from ack)" is kept
 
+    @patch('sciencemapping.analysis.funding_analyzer.SPACY_AVAILABLE', False)
+    def test_extract_funding_data_spacy_unavailable(self, mock_spacy_unavailable):
+        """Test extraction when spaCy is marked as unavailable."""
+        records_with_ack = [
+            {"title": "NLP Test", "acknowledgements": "Funded by The Grant Givers and grant XYZ-123."}
+        ]
+        analyzer = FundingAnalyzer(records_with_ack) # SPACY_AVAILABLE will be False due to patch
+
+        # Temporarily ensure the global nlp_spacy is None for this test's instance if it was somehow loaded
+        with patch('sciencemapping.analysis.funding_analyzer.nlp_spacy', None):
+            results = analyzer.extract_funding_data()
+
+        # Expect only regex-based grant extraction from acknowledgements if any, no ORG extraction
+        # Current regex might pick up XYZ-123
+        self.assertEqual(len(results), 1)
+        self.assertIn("XYZ-123", results[0]["grant_ids"])
+        self.assertEqual(len(results[0]["funders"]), 0) # No ORG extraction
+
+    @patch('sciencemapping.analysis.funding_analyzer.SPACY_AVAILABLE', True)
+    @patch('sciencemapping.analysis.funding_analyzer.nlp_spacy') # This is the loaded spaCy model
+    def test_extract_funding_data_with_spacy_nlp(self, mock_nlp_model, mock_spacy_available):
+        """Test NLP-based extraction from acknowledgements when spaCy is available."""
+
+        # Setup mock for spaCy NLP processing
+        mock_doc = MagicMock()
+        mock_entity_funder = MagicMock()
+        mock_entity_funder.text = "The Grant Giving Foundation"
+        mock_entity_funder.label_ = "ORG"
+
+        mock_entity_other_org = MagicMock()
+        mock_entity_other_org.text = "Some University" # Should not be picked up if we add filtering later
+        mock_entity_other_org.label_ = "ORG"
+
+        mock_entity_person = MagicMock()
+        mock_entity_person.text = "Dr. Smith"
+        mock_entity_person.label_ = "PERSON"
+
+        mock_doc.ents = [mock_entity_funder, mock_entity_other_org, mock_entity_person]
+        mock_nlp_model.return_value = mock_doc # nlp("text") returns doc
+
+        records_for_nlp = [
+            {"title": "NLP Gold", "acknowledgements": "This study was generously funded by The Grant Giving Foundation (Grant ABC/987). Thanks to Some University for facilities."}
+        ]
+        analyzer = FundingAnalyzer(records_for_nlp)
+        results = analyzer.extract_funding_data()
+
+        self.assertEqual(len(results), 1)
+        self.assertIn("The Grant Giving Foundation", results[0]["funders"]) # Normalized by _normalize_funder_name
+        # self.assertNotIn("Some University", results[0]["funders"]) # Ideally, if we had advanced filtering
+        self.assertIn("ABC/987", results[0]["grant_ids"])
+        mock_nlp_model.assert_called_once_with("This study was generously funded by The Grant Giving Foundation (Grant ABC/987). Thanks to Some University for facilities.")
 
     def test_empty_records_funding(self):
         analyzer = FundingAnalyzer([])

@@ -31,7 +31,11 @@ This document outlines known limitations, unimplemented features, and potential 
     *   Conceptually added `cited_references: Optional[List[str]]` to the common internal data format to support advanced citation analyses.
     *   **Action**: Update individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, etc.) to populate this field if the source data provides cited reference information.
 
-6.  **Abstract Parsing (OpenAlex)**:
+6.  **Funding Data - Structured Extraction & CrossRef**:
+    *   **Priority**: Enhance all data source parsers to robustly extract any available *structured* funding information (funder names, grant IDs, funding text) and map it to standardized fields in the common internal record format.
+    *   **CrossRef Integration**: Implement functionality to query the CrossRef API (using DOIs) to retrieve and integrate structured funding data (especially from Funder Registry) into records. This can be a separate enrichment step or part of data source processing.
+
+7.  **Abstract Parsing (OpenAlex)**:
     *   The OpenAlex parser currently notes the presence of `abstract_inverted_index` but does not reconstruct the full abstract.
     *   **Action**: Implement abstract reconstruction if the `openalex` library doesn't provide a direct way or if a more custom approach is needed.
 
@@ -40,23 +44,26 @@ This document outlines known limitations, unimplemented features, and potential 
 ### Data Sources
 1.  **Robust Error Handling**: Further improve error handling for API limits, network issues, and unexpected data formats for all sources.
 2.  **Configuration Management**: Implement a more robust way for users to provide API keys and other configurations (e.g., via a config file for the library itself, or environment variables clearly documented).
-3.  **Full Text Links/Access**: For sources like PubMed, explore options to link to or (where permissible) fetch full text for more detailed analysis (e.g., for acknowledgements).
+3.  **Full Text Links/Access**: For sources like PubMed, explore options to link to or (where permissible) fetch full text for more detailed analysis (e.g., for acknowledgements for funding, or full text for other NLP analyses).
 4.  **Additional Data Sources**: Consider adding support for:
     *   Google Scholar (requires careful handling due to scraping limitations; `scholarly` library).
-    *   CrossRef or Semantic Scholar for more open metadata.
+    *   Semantic Scholar for more open metadata (complementing CrossRef).
     *   Patent databases.
 
 ### Analysis Modules
-1.  **Full `pybibx` Integration**: Complete the integration as noted above.
+1.  **Full `pybibx` Integration**: Complete the integration as noted above (verify API, map fields, test with actual library).
 2.  **Gender Analysis**:
-    *   Integrate `gender-guesser` or a similar library.
+    *   Integrate `gender-guesser` or a similar library into `GenderAnalyzer`.
     *   Provide options for users to supply their own name-gender lists.
     *   Expand statistical reporting (e.g., gender by year, by journal, by field).
     *   Strengthen documentation on ethical use and limitations.
-3.  **Funding Analysis**:
-    *   Implement NLP techniques (e.g., using spaCy or NLTK for NER) to extract funders and grant details from acknowledgement texts.
-    *   Develop methods to normalize funder names.
-    *   Allow analysis of funding trends (e.g., top funders by field/year).
+3.  **Funding Analysis (NLP Enhancement)**:
+    *   The `FundingAnalyzer` now has initial `spaCy` integration for NLP on acknowledgements.
+    *   **Further Actions**:
+        *   Refine NER (e.g., better filtering of ORG entities to identify actual funders).
+        *   Expand and improve regex patterns for grant IDs.
+        *   Improve funder name normalization and disambiguation.
+        *   This NLP approach should be clearly documented as secondary to structured data extraction and CrossRef enrichment.
 4.  **New Analysis Types**:
     *   Bibliographic coupling analysis.
     *   Collaboration network analysis between institutions or countries.

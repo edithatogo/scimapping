@@ -31,66 +31,87 @@ class PybibxAnalyzer:
             records: A list of publication records.
         """
         self.records = records
-        self.pybibx_corpus = None
+        self.pybibx_corpus = None # This would be the pybibx Corpus object
 
         if PYBIBX_AVAILABLE and pybibx:
             try:
-                # This assumes pybibx.Corpus can take a list of dicts.
-                # Field name mapping might be needed here if our internal format
-                # doesn't match pybibx's expectations perfectly.
-                # For now, assume direct compatibility or that pybibx is flexible.
-                self.pybibx_corpus = pybibx.Corpus(self.records)
-                print("PybibxAnalyzer: Successfully initialized pybibx.Corpus.")
+                # Conceptual: Map internal record format to what pybibx might expect
+                # pybibx might expect specific field names (e.g., WoS tags like 'AU', 'DE', 'CR', 'PY', 'TI', 'SO')
+                # For this example, we'll assume a simple mapping for key fields.
+                # A real implementation would need to know pybibx's exact requirements.
+
+                pybibx_input_records = []
+                for rec in self.records:
+                    mapped_rec = {
+                        "TI": rec.get("title"),
+                        "AU": rec.get("authors"), # Assumes pybibx can handle list of author strings
+                        "DE": rec.get("keywords"),# Assumes pybibx can handle list of keyword strings for Author Keywords
+                        "ID": [], # Placeholder for Keywords Plus, if pybibx distinguishes
+                        "PY": rec.get("year"),
+                        "SO": rec.get("journal"),
+                        "DI": rec.get("doi"),
+                        "AB": rec.get("abstract"),
+                        # For citation analysis, pybibx might need structured cited references
+                        # or rely on a pre-calculated 'TC' (Times Cited) field.
+                        "TC": rec.get("times_cited_wos") or rec.get("times_cited_scopus") or \
+                              rec.get("times_cited_openalex") or rec.get("cited_by_count"),
+                        "CR": rec.get("cited_references") # New conceptual field
+                    }
+                    # Remove None values as some libraries prefer sparse dicts
+                    pybibx_input_records.append({k: v for k, v in mapped_rec.items() if v is not None})
+
+                self.pybibx_corpus = pybibx.Corpus(pybibx_input_records)
+                print("PybibxAnalyzer: Successfully initialized and mapped records to pybibx.Corpus (conceptual).")
             except Exception as e:
                 print(f"PybibxAnalyzer: Error initializing pybibx.Corpus - {e}. Will use placeholder logic.")
-                self.pybibx_corpus = None # Ensure fallback
+                self.pybibx_corpus = None
         else:
             print("PybibxAnalyzer: pybibx not fully available. Using placeholder logic for all analyses.")
 
-
-    def _transform_pybibx_network_output(self, pybibx_network_result: Any, network_type: str) -> Dict[str, Any]:
+    def _transform_pybibx_network_output(
+        self,
+        pybibx_nodes: Optional[List[Any]],
+        pybibx_edges: Optional[List[Tuple[Any, Any, int]]],
+        network_type: str
+        ) -> Dict[str, Any]:
         """
-        Transforms hypothetical pybibx network output into our standard dict format.
-        This is a placeholder for actual transformation logic.
-        Assumes pybibx_network_result might be an object with .nodes() and .edges(data=True)
-        similar to NetworkX, or a dict already.
+        Transforms hypothetical pybibx network output (list of nodes, list of edge tuples)
+        into our standard dict format: {"nodes": [{"id":...}], "edges": [{"source":..., "target":..., "weight":...}]}.
+
+        Args:
+            pybibx_nodes: Assumed list of node identifiers (e.g., author names, keywords).
+            pybibx_edges: Assumed list of edge tuples (e.g., (item1, item2, weight)).
+            network_type: String identifier for the network type.
         """
-        if not pybibx_network_result:
-            return {"nodes": [], "edges": [], "type": network_type}
+        if pybibx_nodes is None: pybibx_nodes = []
+        if pybibx_edges is None: pybibx_edges = []
 
-        # Placeholder: Assume pybibx_network_result is already in a compatible dict format
-        # or has methods to export to it.
-        if isinstance(pybibx_network_result, dict) and "nodes" in pybibx_network_result and "edges" in pybibx_network_result:
-            return {**pybibx_network_result, "type": network_type}
+        nodes_transformed = [{"id": str(node)} for node in pybibx_nodes]
+        edges_transformed = [
+            {"source": str(u), "target": str(v), "weight": int(w)}
+            for u, v, w in pybibx_edges
+        ]
 
-        # If pybibx_network_result is like a NetworkX graph G:
-        # nodes = [{"id": str(node), **data} for node, data in getattr(pybibx_network_result, 'nodes', lambda data=True: [] )(data=True)]
-        # edges = [{"source": str(u), "target": str(v), **data} for u, v, data in getattr(pybibx_network_result, 'edges', lambda data=True: [])(data=True)]
-        # return {"nodes": nodes, "edges": edges, "type": network_type}
-
-        # Fallback if transformation is unknown for this placeholder
-        print(f"PybibxAnalyzer: Warning - Could not transform pybibx '{network_type}' network output of type {type(pybibx_network_result)}. Returning raw or empty.")
-        if isinstance(pybibx_network_result, dict): # If it's a dict but not matching, return as is
-            return {**pybibx_network_result, "type": network_type}
-        return {"nodes": [], "edges": [], "type": network_type, "raw_pybibx_output": str(pybibx_network_result)}
-
+        return {"nodes": nodes_transformed, "edges": edges_transformed, "type": network_type}
 
     def co_authorship_network(self, author_threshold: int = 1) -> Optional[Dict[str, Any]]:
         if not self.records: return None
 
         if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'coauthorship'):
             try:
-                print(f"PybibxAnalyzer: Calling pybibx.analysis.coauthorship with threshold {author_threshold}.")
-                # Hypothetical actual pybibx call structure
-                # This assumes pybibx.analysis.coauthorship exists and takes corpus and threshold
-                raw_network = pybibx.analysis.coauthorship(self.pybibx_corpus, threshold=author_threshold)
-                return self._transform_pybibx_network_output(raw_network, "co-authorship")
+                print(f"PybibxAnalyzer: Calling conceptual pybibx.analysis.coauthorship (threshold {author_threshold}).")
+                # Hypothetical: pybibx.analysis.coauthorship returns (list_of_nodes, list_of_edge_tuples)
+                # e.g., nodes = ["Author A", "Author B"], edges = [("Author A", "Author B", 2)]
+                pybibx_nodes, pybibx_edges = pybibx.analysis.coauthorship(
+                    self.pybibx_corpus,
+                    threshold=author_threshold
+                )
+                return self._transform_pybibx_network_output(pybibx_nodes, pybibx_edges, "co-authorship")
             except Exception as e:
-                print(f"PybibxAnalyzer: Error during pybibx co-authorship analysis - {e}. Falling back to placeholder.")
-                # Fall through to placeholder if pybibx call fails
+                print(f"PybibxAnalyzer: Error during conceptual pybibx co-authorship - {e}. Falling back to placeholder.")
 
-        # --- Placeholder Logic (if pybibx not available or call failed) ---
-        print(f"PybibxAnalyzer: Using placeholder co-authorship network generation (threshold {author_threshold}).")
+        # --- Placeholder Logic ---
+        print(f"PybibxAnalyzer: Using placeholder co-authorship network (threshold {author_threshold}).")
         nodes = set()
         edges = {}
         for record in self.records:
@@ -117,14 +138,17 @@ class PybibxAnalyzer:
 
         if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'keywords'):
             try:
-                print(f"PybibxAnalyzer: Calling pybibx.analysis.keywords (cooccurrence) with threshold {keyword_threshold}.")
-                # Hypothetical actual pybibx call structure
-                # This assumes pybibx.analysis.keywords exists and can do co-occurrence
-                raw_network = pybibx.analysis.keywords(self.pybibx_corpus, method="cooccurrence", threshold=keyword_threshold)
-                return self._transform_pybibx_network_output(raw_network, "keyword-cooccurrence")
+                print(f"PybibxAnalyzer: Calling conceptual pybibx.analysis.keywords (cooccurrence, threshold {keyword_threshold}).")
+                # Hypothetical: pybibx.analysis.keywords returns (list_of_nodes, list_of_edge_tuples)
+                # e.g., nodes = ["kw A", "kw B"], edges = [("kw A", "kw B", 5)]
+                pybibx_nodes, pybibx_edges = pybibx.analysis.keywords(
+                    self.pybibx_corpus,
+                    method="cooccurrence",
+                    threshold=keyword_threshold
+                )
+                return self._transform_pybibx_network_output(pybibx_nodes, pybibx_edges, "keyword-cooccurrence")
             except Exception as e:
-                print(f"PybibxAnalyzer: Error during pybibx keyword co-occurrence analysis - {e}. Falling back to placeholder.")
-                # Fall through to placeholder
+                print(f"PybibxAnalyzer: Error during conceptual pybibx keyword co-occurrence - {e}. Falling back to placeholder.")
 
         # --- Placeholder Logic ---
         print(f"PybibxAnalyzer: Using placeholder keyword co-occurrence network (threshold {keyword_threshold}).")
@@ -153,26 +177,41 @@ class PybibxAnalyzer:
     def citation_analysis(self) -> Optional[Dict[str, Any]]:
         if not self.records: return None
 
-        if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'citations'):
+        if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'citation_summary'): # Renamed for clarity
             try:
-                print("PybibxAnalyzer: Calling pybibx.analysis.citations.")
-                # Hypothetical actual pybibx call
-                citation_stats_raw = pybibx.analysis.citations(self.pybibx_corpus)
-                # Assume citation_stats_raw needs transformation
-                # This is highly speculative as pybibx citation output is unknown
-                # For placeholder, assume it might return a list of records with a 'pybibx_citations' field
-                # or a dict with 'most_cited_papers', 'h_index_authors' etc.
-                # For now, let's assume a simple dict structure is returned by pybibx:
-                if isinstance(citation_stats_raw, dict) and "most_cited_papers" in citation_stats_raw:
-                    return citation_stats_raw
-                else: # Fallback to our placeholder if pybibx output is not as expected or needs complex parsing
-                    print("PybibxAnalyzer: pybibx citation output format not recognized or needs parsing. Falling back to placeholder.")
+                print("PybibxAnalyzer: Calling conceptual pybibx.analysis.citation_summary.")
+                # Hypothetical: pybibx.analysis.citation_summary returns a dict like:
+                # {
+                #   "total_papers_analyzed": N,
+                #   "papers_with_citations": M,
+                #   "total_citations_in_corpus": C, (sum of TC fields it found)
+                #   "top_cited_documents": [
+                #       {"title": "P1", "doi": "d1", "pybibx_citations": c1, "original_record_index": i1}, ...
+                #   ],
+                #   "average_citations_per_paper": X.X
+                # }
+                # This assumes pybibx can use the 'TC' field we mapped or calculates its own.
+                pybibx_summary_dict = pybibx.analysis.citation_summary(self.pybibx_corpus, top_n=10)
+
+                # Transform this hypothetical pybibx_summary_dict to our expected output format
+                transformed_results = {
+                    "most_cited_papers": [],
+                    "total_papers_with_citation_data": pybibx_summary_dict.get("papers_with_citations", 0),
+                    "raw_pybibx_summary": pybibx_summary_dict # Include the raw output too
+                }
+                if "top_cited_documents" in pybibx_summary_dict:
+                    for item in pybibx_summary_dict["top_cited_documents"]:
+                        transformed_results["most_cited_papers"].append({
+                            "title": item.get("title", "N/A"),
+                            "doi": item.get("doi", "N/A"),
+                            "citations": item.get("pybibx_citations") # Use the count from pybibx
+                        })
+                return transformed_results
             except Exception as e:
-                print(f"PybibxAnalyzer: Error during pybibx citation analysis - {e}. Falling back to placeholder.")
-                # Fall through to placeholder
+                print(f"PybibxAnalyzer: Error during conceptual pybibx citation_summary - {e}. Falling back to placeholder.")
 
         # --- Placeholder Logic ---
-        print("PybibxAnalyzer: Using placeholder citation analysis.")
+        print("PybibxAnalyzer: Using placeholder citation analysis (based on available 'times_cited_...' fields).")
         most_cited_papers = []
         for record in self.records:
             citations = record.get("times_cited_wos") or \

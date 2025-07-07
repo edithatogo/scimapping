@@ -27,19 +27,40 @@ class TestPybibxAnalyzer(unittest.TestCase):
         mock_corpus_instance = MagicMock(name="MockPybibxCorpus")
         mock_pybibx_module.Corpus.return_value = mock_corpus_instance
 
-        mock_pybibx_result = {"nodes": [{"id":"pybibx_author1"}], "edges": [{"source":"pybibx_author1", "target":"pybibx_author2", "weight":1}]}
-        mock_pybibx_module.analysis = MagicMock() # Ensure 'analysis' attribute exists
-        mock_pybibx_module.analysis.coauthorship.return_value = mock_pybibx_result
+        # Define mock raw output from pybibx.analysis.coauthorship
+        mock_raw_pybibx_nodes = ["Author A", "Author B"]
+        mock_raw_pybibx_edges = [("Author A", "Author B", 2)]
+        mock_pybibx_module.analysis = MagicMock()
+        mock_pybibx_module.analysis.coauthorship.return_value = (mock_raw_pybibx_nodes, mock_raw_pybibx_edges)
 
-        analyzer_with_pybibx = PybibxAnalyzer(SAMPLE_RECORDS) # PYBIBX_AVAILABLE=True will be seen by this instance
+        analyzer_with_pybibx = PybibxAnalyzer(SAMPLE_RECORDS)
+        network = analyzer_with_pybibx.co_authorship_network(author_threshold=1) # Threshold is used by pybibx call
 
-        network = analyzer_with_pybibx.co_authorship_network(author_threshold=1)
+        # Verify Corpus was called with mapped records (harder to check precisely without deep_equals on complex list of dicts)
+        # For now, just check it was called. A more detailed check would compare the mapped structure.
+        mock_pybibx_module.Corpus.assert_called()
+        # Check that the first record passed to Corpus has at least one expected mapped key (e.g., 'AU' for authors)
+        call_args_list = mock_pybibx_module.Corpus.call_args_list
+        self.assertTrue(len(call_args_list) > 0)
+        first_call_args = call_args_list[0][0][0] # First arg of first call
+        self.assertTrue(len(first_call_args) > 0) # Records list not empty
+        # Check if a sample mapped record has expected structure (e.g., 'AU' key if authors were mapped to 'AU')
+        # This depends on the exact mapping logic in PybibxAnalyzer.__init__
+        # For example, if authors are mapped to 'AU':
+        self.assertIn("AU", first_call_args[0])
+        self.assertEqual(first_call_args[0]["AU"], SAMPLE_RECORDS[0]["authors"])
 
-        mock_pybibx_module.Corpus.assert_called_with(SAMPLE_RECORDS)
+
         mock_pybibx_module.analysis.coauthorship.assert_called_once_with(mock_corpus_instance, threshold=1)
-        self.assertEqual(network["nodes"], mock_pybibx_result["nodes"])
-        self.assertEqual(network["edges"], mock_pybibx_result["edges"])
+
+        # Verify transformed output
+        expected_transformed_nodes = [{"id": "Author A"}, {"id": "Author B"}]
+        expected_transformed_edges = [{"source": "Author A", "target": "Author B", "weight": 2}]
+
+        self.assertIsNotNone(network)
         self.assertEqual(network["type"], "co-authorship")
+        self.assertListEqual(network["nodes"], expected_transformed_nodes)
+        self.assertListEqual(network["edges"], expected_transformed_edges)
 
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
@@ -96,17 +117,28 @@ class TestPybibxAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_keyword_cooccurrence_with_pybibx_success(self, mock_pybibx_module): # mock_pybibx_available removed
-        mock_corpus = MagicMock()
+        mock_corpus = MagicMock(name="MockPybibxCorpus_KW")
         mock_pybibx_module.Corpus.return_value = mock_corpus
-        mock_pybibx_result = {"nodes": [{"id":"kw1_pybibx"}], "edges": []}
+
+        mock_raw_pybibx_nodes = ["ml", "ai"]
+        mock_raw_pybibx_edges = [("ml", "ai", 5)]
         mock_pybibx_module.analysis = MagicMock()
-        mock_pybibx_module.analysis.keywords.return_value = mock_pybibx_result
+        mock_pybibx_module.analysis.keywords.return_value = (mock_raw_pybibx_nodes, mock_raw_pybibx_edges)
 
         analyzer = PybibxAnalyzer(SAMPLE_RECORDS)
-        result = analyzer.keyword_cooccurrence_network()
+        result = analyzer.keyword_cooccurrence_network(keyword_threshold=2) # Example threshold
 
-        mock_pybibx_module.analysis.keywords.assert_called_once_with(mock_corpus, method="cooccurrence", threshold=1)
-        self.assertEqual(result["nodes"], mock_pybibx_result["nodes"])
+        mock_pybibx_module.Corpus.assert_called() # Check that Corpus was initialized
+        mock_pybibx_module.analysis.keywords.assert_called_once_with(
+            mock_corpus,
+            method="cooccurrence",
+            threshold=2
+        )
+
+        expected_nodes = [{"id": "ml"}, {"id": "ai"}]
+        expected_edges = [{"source": "ml", "target": "ai", "weight": 5}]
+        self.assertEqual(result["nodes"], expected_nodes)
+        self.assertListEqual(result["edges"], expected_edges)
         self.assertEqual(result["type"], "keyword-cooccurrence")
 
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', False)
@@ -128,17 +160,37 @@ class TestPybibxAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_citation_analysis_with_pybibx_success(self, mock_pybibx_module): # mock_pybibx_available removed
-        mock_corpus = MagicMock()
+        mock_corpus = MagicMock(name="MockPybibxCorpus_Cite")
         mock_pybibx_module.Corpus.return_value = mock_corpus
-        mock_pybibx_result = {"most_cited_papers": [{"title":"Top Paper"}], "total_papers_with_citation_data": 1}
+
+        # Hypothetical raw output from pybibx.analysis.citation_summary
+        mock_raw_pybibx_citation_summary = {
+            "total_papers_analyzed": len(SAMPLE_RECORDS),
+            "papers_with_citations": 1,
+            "total_citations_in_corpus": 50,
+            "top_cited_documents": [
+                {"title": "Pybibx Top Paper", "doi": "pd1", "pybibx_citations": 50, "original_record_index": 0},
+            ],
+            "average_citations_per_paper": 25.0 # Example
+        }
         mock_pybibx_module.analysis = MagicMock()
-        mock_pybibx_module.analysis.citations.return_value = mock_pybibx_result
+        mock_pybibx_module.analysis.citation_summary.return_value = mock_raw_pybibx_citation_summary
 
         analyzer = PybibxAnalyzer(SAMPLE_RECORDS)
         result = analyzer.citation_analysis()
 
-        mock_pybibx_module.analysis.citations.assert_called_once_with(mock_corpus)
-        self.assertEqual(result, mock_pybibx_result)
+        mock_pybibx_module.Corpus.assert_called()
+        mock_pybibx_module.analysis.citation_summary.assert_called_once_with(mock_corpus, top_n=10)
+
+        # Verify transformed output
+        expected_transformed_result = {
+            "most_cited_papers": [{
+                "title": "Pybibx Top Paper", "doi": "pd1", "citations": 50
+            }],
+            "total_papers_with_citation_data": 1,
+            "raw_pybibx_summary": mock_raw_pybibx_citation_summary
+        }
+        self.assertEqual(result, expected_transformed_result)
 
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', False)
     def test_citation_analysis_fallback_placeholder(self): # Removed mock_pybibx_unavailable argument

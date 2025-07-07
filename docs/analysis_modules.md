@@ -6,40 +6,55 @@ The `sciencemapping` library includes several modules for performing bibliometri
 
 *   **Module**: `sciencemapping.analysis.pybibx_analyzer.PybibxAnalyzer`
 *   **Purpose**: This class serves as an interface to the `pybibx` library for performing bibliometric analyses.
-*   **Current Status & `pybibx` Integration**:
-    *   The `PybibxAnalyzer` is designed to use `pybibx` if the library is installed and available in the Python environment. It attempts to initialize a `pybibx.Corpus` with the provided records.
-    *   If `pybibx` is not found, or if initializing its components or performing an analysis fails, the analyzer gracefully falls back to using **internal placeholder logic**.
-    *   This dual approach allows the `sciencemapping` library to function and demonstrate its intended analytical capabilities even if `pybibx` itself cannot be run (e.g., due to environment restrictions or installation issues).
-    *   Actual calls to `pybibx` functions (e.g., `pybibx.analysis.coauthorship`) are structured within the analyzer but are contingent on `pybibx` being usable. The transformation of `pybibx` results into the library's standard dictionary format is also conceptually handled.
-*   **Key Analysis Methods (Conceptual `pybibx` Usage & Placeholders)**:
+*   **Current Status & `pybibx` Integration (Conceptual)**:
+    *   The `PybibxAnalyzer` is designed to use `pybibx` if the library is installed and available.
+    *   **Corpus Initialization**: When initialized, `PybibxAnalyzer` attempts to convert the input records (in the library's common internal format) into a format suitable for `pybibx.Corpus`. This involves conceptual mapping of field names (e.g., `title` to `TI`, `authors` to `AU`, `keywords` to `DE`, `year` to `PY`, coalesced citation counts to `TC`, and `cited_references` to `CR`).
+        ```python
+        # Conceptual mapping within PybibxAnalyzer for pybibx.Corpus
+        # mapped_rec = {
+        #     "TI": record.get("title"), "AU": record.get("authors"),
+        #     "DE": record.get("keywords"), "PY": record.get("year"),
+        #     "TC": record.get("times_cited_..."), # Coalesced
+        #     "CR": record.get("cited_references")
+        #     # ... other relevant WoS-like tags pybibx might expect
+        # }
+        # self.pybibx_corpus = pybibx.Corpus(mapped_pybibx_records)
+        ```
+    *   **Fallback Mechanism**: If `pybibx` is not found, or if any step in initializing or using `pybibx` fails (e.g., `pybibx.Corpus()` instantiation, or an analysis call like `pybibx.analysis.coauthorship()`), the analyzer gracefully falls back to using **internal placeholder logic** for the requested analysis. It will print informative messages indicating whether `pybibx` (conceptual) or placeholder logic was used.
+*   **Key Analysis Methods (Conceptual `pybibx` API Usage & Placeholders)**:
     *   **Co-authorship Network Analysis**:
         *   Method: `co_authorship_network(author_threshold: int = 1)`
-        *   *If `pybibx` available*: Conceptually calls `pybibx.analysis.coauthorship(corpus, threshold=...)`.
-        *   *Fallback*: Generates a basic co-authorship network.
-        *   Returns: A dictionary `{"nodes": [...], "edges": [...], "type": "co-authorship"}`.
+        *   *Conceptual `pybibx` path*:
+            *   Calls `pybibx.analysis.coauthorship(self.pybibx_corpus, threshold=author_threshold)`.
+            *   Assumes this returns a tuple: `(nodes, edges)`, where `nodes` is a list of author names, and `edges` is a list of tuples like `(author1, author2, weight)`.
+            *   These raw results are transformed by `_transform_pybibx_network_output` into the standard `{"nodes": [{"id": ...}], "edges": [{"source": ..., "target": ..., "weight": ...}], "type": "co-authorship"}` format.
+        *   *Fallback*: Generates a basic co-authorship network using internal logic.
     *   **Keyword Co-occurrence Network Analysis**:
         *   Method: `keyword_cooccurrence_network(keyword_threshold: int = 1)`
-        *   *If `pybibx` available*: Conceptually calls `pybibx.analysis.keywords(corpus, method="cooccurrence", threshold=...)`.
+        *   *Conceptual `pybibx` path*:
+            *   Calls `pybibx.analysis.keywords(self.pybibx_corpus, method="cooccurrence", threshold=keyword_threshold)`.
+            *   Assumes this returns `(nodes, edges)` similar to co-authorship, but with keywords.
+            *   Results are transformed by `_transform_pybibx_network_output`.
         *   *Fallback*: Generates a basic keyword co-occurrence network.
-        *   Returns: A dictionary `{"nodes": [...], "edges": [...], "type": "keyword-cooccurrence"}`.
     *   **Citation Analysis**:
         *   Method: `citation_analysis()`
-        *   *If `pybibx` available*: Conceptually calls `pybibx.analysis.citations(corpus)`.
-        *   *Fallback*: Calculates basic citation statistics (e.g., most cited papers) based on available `times_cited_...` fields in the input records.
-        *   Returns: A dictionary like `{"most_cited_papers": [...], "total_papers_with_citation_data": ...}`.
+        *   *Conceptual `pybibx` path*:
+            *   Calls `pybibx.analysis.citation_summary(self.pybibx_corpus, top_n=10)`.
+            *   Assumes this returns a dictionary with keys like `total_papers_analyzed`, `papers_with_citations`, `top_cited_documents` (a list of dicts, each with `title`, `doi`, `pybibx_citations`).
+            *   These raw results are transformed into the library's standard format: `{"most_cited_papers": [{"title": ..., "doi": ..., "citations": ...}], "total_papers_with_citation_data": ..., "raw_pybibx_summary": ...}`.
+        *   *Fallback*: Calculates basic citation statistics from available `times_cited_...` fields in the input records.
 *   **Usage**:
     ```python
     from sciencemapping.analysis.pybibx_analyzer import PybibxAnalyzer
 
     # Assuming 'records' is a list of dicts from ScienceMapper.get_records()
     analyzer = PybibxAnalyzer(records)
-    # The analyzer will print messages indicating if pybibx was initialized or if it's using placeholders.
+    # Analyzer prints messages about pybibx initialization or fallback.
 
-    coauth_net = analyzer.co_authorship_network()
-    keyword_net = analyzer.keyword_cooccurrence_network()
-    citation_stats = analyzer.citation_analysis()
+    coauth_net = analyzer.co_authorship_network() # Will try pybibx, then fallback
+    # ... other analysis calls
     ```
-*   **Note**: The successful execution of actual `pybibx` functions depends on its proper installation and compatibility with the runtime environment. The placeholder logic ensures the `PybibxAnalyzer` remains functional for demonstration and testing of the overall library structure.
+*   **Note**: This integration is **conceptual and not yet tested with an actual `pybibx` library**. The successful execution of real `pybibx` functions depends on its proper installation, API matching these assumptions, and compatibility. The placeholder logic ensures `PybibxAnalyzer` remains functional.
 
 ## 2. `GenderAnalyzer`
 

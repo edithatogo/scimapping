@@ -58,10 +58,10 @@ This document outlines known limitations, unimplemented features, and potential 
 ### Analysis Modules
 1.  **Full `pybibx` Integration**: Complete the integration as noted above (verify API, map fields, test with actual library).
 2.  **Gender Analysis**:
-    *   Integrate `gender-guesser` or a similar library into `GenderAnalyzer`.
-    *   Provide options for users to supply their own name-gender lists.
-    *   Expand statistical reporting (e.g., gender by year, by journal, by field).
-    *   Strengthen documentation on ethical use and limitations.
+    *   [X] Integrated `gender-guesser` library into `GenderAnalyzer` with fallback to placeholder logic. Unit tests updated and pass.
+    *   [ ] Provide options for users to supply their own name-gender lists for `GenderAnalyzer`.
+    *   [ ] Expand statistical reporting in `GenderAnalyzer` (e.g., gender by year, by journal, by field).
+    *   [ ] Further refine documentation on ethical use and limitations of gender inference.
 3.  **Funding Analysis (NLP Enhancement)**:
     *   The `FundingAnalyzer` now has initial `spaCy` integration for NLP on acknowledgements.
     *   **Further Actions**:

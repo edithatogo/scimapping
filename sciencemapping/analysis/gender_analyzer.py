@@ -1,11 +1,37 @@
 from typing import List, Dict, Any, Optional, Tuple
-# import gender_guesser.detector as gender_detector # Would be imported if used
+import warnings
+
+# Attempt to import gender_guesser
+GENDER_GUESSER_AVAILABLE = False
+gender_detector_module = None
+try:
+    import gender_guesser.detector
+    gender_detector_module = gender_guesser.detector
+    GENDER_GUESSER_AVAILABLE = True
+    print("GenderAnalyzer: gender_guesser library loaded successfully.")
+except ImportError:
+    warnings.warn(
+        "GenderAnalyzer: 'gender-guesser' library not found. Gender inference will use basic placeholder logic. "
+        "Install with 'pip install gender-guesser'.",
+        ImportWarning
+    )
 
 class GenderAnalyzer:
     def __init__(self, records: List[Dict[str, Any]], name_field: str = "authors"):
         self.records = records
         self.name_field = name_field # Field containing author names
-        # self.gender_detector = gender_detector.Detector() # Initialize once
+        self.gender_detector = None
+        if GENDER_GUESSER_AVAILABLE and gender_detector_module:
+            try:
+                # Initialize with case_sensitive=False for broader matching
+                self.gender_detector = gender_detector_module.Detector(case_sensitive=False)
+                print("GenderAnalyzer: gender_guesser.Detector initialized.")
+            except Exception as e:
+                warnings.warn(f"GenderAnalyzer: Failed to initialize gender_guesser.Detector - {e}. Will use placeholder.", RuntimeWarning)
+                self.gender_detector = None # Ensure it's None on failure
+        else:
+            print("GenderAnalyzer: gender_guesser not available. Using placeholder for gender inference.")
+
 
     def _get_first_name(self, full_name: str) -> Optional[str]:
         """Extracts a potential first name from a full name string."""
@@ -46,25 +72,23 @@ class GenderAnalyzer:
                 first_name = self._get_first_name(author_name_full)
                 inferred_gender = "unknown" # Default
 
-                if first_name:
-                    # Placeholder: A real call would be:
-                    # try:
-                    #     raw_gender = self.gender_detector.get_gender(first_name)
-                    #     # Map raw_gender (e.g., 'mostly_female', 'andy') to a simpler category
-                    #     if raw_gender in ['female', 'mostly_female']:
-                    #         inferred_gender = 'female'
-                    #     elif raw_gender in ['male', 'mostly_male']:
-                    #         inferred_gender = 'male'
-                    #     elif raw_gender == 'andy':
-                    #          inferred_gender = 'androgynous'
-                    #     else: # unknown, name_not_found
-                    #          inferred_gender = 'unknown'
-                    # except Exception: # Handle errors from gender_guesser
-                    #     inferred_gender = 'error_in_guessing'
-                    # For this placeholder:
-                    if first_name.lower().startswith(('a','i','e','u')) and len(first_name) > 3 : # Arbitrary rule
+                if first_name and self.gender_detector: # Use gender_guesser if available
+                    try:
+                        # gender-guesser returns: female, mostly_female, male, mostly_male, andy, unknown
+                        raw_gender = self.gender_detector.get_gender(first_name)
+                        inferred_gender = raw_gender
+                        # Optional: map to simpler categories if desired
+                        # if raw_gender in ['female', 'mostly_female']: inferred_gender = 'female'
+                        # elif raw_gender in ['male', 'mostly_male']: inferred_gender = 'male'
+                        # elif raw_gender == 'andy': inferred_gender = 'androgynous'
+                        # else: inferred_gender = 'unknown' # Covers 'unknown', 'name_not_found'
+                    except Exception as e:
+                        warnings.warn(f"GenderAnalyzer: Error calling gender_guesser for name '{first_name}': {e}", RuntimeWarning)
+                        inferred_gender = 'error_in_guessing'
+                elif first_name: # Fallback to placeholder if gender_detector is not available
+                    if first_name.lower().startswith(('a','i','e','u')) and len(first_name) > 3 :
                          inferred_gender = 'female (placeholder)'
-                    elif len(first_name) > 0 :
+                    elif len(first_name) > 0 : # Ensure first_name is not empty
                          inferred_gender = 'male (placeholder)'
 
                 authors_with_gender.append({
@@ -74,7 +98,9 @@ class GenderAnalyzer:
                 })
                 processed_authors.add(author_name_full)
 
-        print(f"GenderAnalyzer: Processed {len(processed_authors)} unique author names for gender inference (placeholder logic).")
+        log_message = "GenderAnalyzer: Processed {num_authors} unique author names for gender inference ({method} logic)."
+        method_used = "gender_guesser" if self.gender_detector else "placeholder"
+        print(log_message.format(num_authors=len(processed_authors), method=method_used))
         return authors_with_gender
 
     def get_gender_distribution_stats(self) -> Dict[str, Any]:

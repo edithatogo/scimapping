@@ -59,20 +59,34 @@ The `sciencemapping` library includes several modules for performing bibliometri
 ## 2. `GenderAnalyzer`
 
 *   **Module**: `sciencemapping.analysis.gender_analyzer.GenderAnalyzer`
-*   **Purpose**: Addresses the potential analysis gap related to author gender. This module provides conceptual tools for inferring gender from author names and calculating basic gender distribution statistics.
-*   **Current Status**: **Placeholder Logic / Conceptual**.
-    *   The `infer_author_genders()` method demonstrates how first names could be extracted and passed to a gender guessing tool (like `gender-guesser`, which is commented out). The current placeholder uses a very simplistic rule for demonstration.
-    *   The `get_gender_distribution_stats()` method uses the output of the placeholder inference.
+*   **Purpose**: Provides tools for inferring gender from author names and calculating basic gender distribution statistics.
+*   **Current Status & `gender-guesser` Integration**:
+    *   The `GenderAnalyzer` now integrates the `gender-guesser` Python library for name-based gender inference.
+    *   **Initialization**: When `GenderAnalyzer` is initialized, it attempts to import and initialize `gender_guesser.detector.Detector(case_sensitive=False)`.
+    *   **Fallback Mechanism**: If the `gender-guesser` library is not installed or if its detector fails to initialize, the analyzer issues a warning and gracefully falls back to using an internal **placeholder logic** for gender inference.
+    *   Informative print messages indicate whether `gender-guesser` or placeholder logic is active.
 *   **Key Methods**:
-    *   `_get_first_name(full_name: str)`: Helper to extract a potential first name.
-    *   `infer_author_genders()`: Returns a list of authors with an `inferred_gender` field (placeholder logic).
-    *   `get_gender_distribution_stats()`: Returns a dictionary with counts for each inferred gender category.
-*   **Ethical Considerations**:
-    *   Gender inference is probabilistic, can be inaccurate, and may misgender individuals.
-    *   It often relies on cultural and regional name-gender associations which may not be universally applicable.
-    *   It typically operates on a binary gender assumption, excluding non-binary individuals.
-    *   **Results from this type of analysis should always be reported with strong caveats and used for aggregate statistical insights, not for individual assessment.**
-*   **Future**: Could be enhanced by integrating `gender-guesser` or other more sophisticated name-based inference tools, along with clear documentation on their limitations and biases.
+    *   `_get_first_name(full_name: str)`: Helper method to extract a potential first name from a full author name string. This first name is then used as input for `gender-guesser`.
+    *   `infer_author_genders()`:
+        *   *If `gender-guesser` available*: Calls `gender_detector.get_gender(first_name)` for each author. The direct output from `gender-guesser` is used as the `inferred_gender`. These categories include:
+            *   `female`
+            *   `mostly_female`
+            *   `male`
+            *   `mostly_male`
+            *   `andy` (androgynous)
+            *   `unknown` (name not found in its database or gender indeterminate)
+            *   `name_not_found` (if applicable, though often maps to `unknown`)
+        *   Handles errors during `gender-guesser` calls by assigning `'error_in_guessing'`.
+        *   *Fallback*: Uses a simplistic rule-based placeholder if `gender-guesser` is unavailable.
+        *   Returns: A list of dictionaries, each containing the original `name`, `first_name_used_for_guess`, and the `inferred_gender`.
+    *   `get_gender_distribution_stats()`: Calculates and returns a dictionary with counts for each `inferred_gender` category produced by `infer_author_genders()`.
+*   **Ethical Considerations & Limitations**:
+    *   **Probabilistic Nature**: Name-based gender inference (including `gender-guesser`) is probabilistic and not deterministic. Accuracy varies significantly based on name origin, cultural context, and the coverage of the underlying name database.
+    *   **Bias**: Name databases can have inherent biases (e.g., towards Western names).
+    *   **Non-Binary Genders**: Most current tools, including `gender-guesser`, primarily operate on a binary (male/female) or limited categorical model (like `andy` for androgynous). They generally do not accurately represent or identify non-binary individuals.
+    *   **Misgendering**: There's a risk of misgendering individuals.
+    *   **Usage Recommendation**: Results from this type of analysis should **always be reported with strong caveats** regarding these limitations. They are best suited for aggregate statistical analysis of large datasets to identify potential trends or disparities, **not for making assumptions or decisions about any specific individual's gender.** User discretion and awareness of the limitations are crucial.
+*   **Dependencies**: Requires the `gender-guesser` library (`pip install gender-guesser`).
 
 ## 3. `FundingAnalyzer`
 

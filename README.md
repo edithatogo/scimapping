@@ -54,9 +54,14 @@ The primary goal of this library is to provide a comprehensive toolkit for:
     ```
 
     **Important Notes on Dependencies:**
-    *   **`pybibx`**: This library is intended for core analysis. It's listed as a dependency, but its direct integration and testing are currently ongoing. The `PybibxAnalyzer` module currently uses placeholder logic.
-    *   **`pybliometrics` (for Scopus)**: This is a key dependency for Scopus access. It's currently commented out in `pyproject.toml` due to runtime issues encountered in the development environment. If you plan to use Scopus features, you'll need to add it to the dependencies in `pyproject.toml` (or install it separately) and ensure it works in your environment with proper API key configuration.
-    *   **API Clients (`dimcli`, `openalex`)**: For data sources like Dimensions and OpenAlex, their respective client libraries (`dimcli`, `openalex`) will be installed. You will need to configure your API keys/credentials for these services as per their documentation for live API calls.
+    *   **`pybibx`**: This library is intended for core analysis. It's listed as a dependency, but its direct integration is currently conceptual. The `PybibxAnalyzer` module uses placeholder logic.
+    *   **`pybliometrics` (for Scopus)**: A key dependency for Scopus. Commented out in `pyproject.toml` due to prior runtime issues. Add it if using Scopus and ensure it's configured with your API key.
+    *   **API Clients (`dimcli`, `openalex`)**: These will be installed. Configure your API keys/credentials for these services per their documentation.
+    *   **`spacy` (for NLP in Funding Analysis)**: If using NLP features for funding analysis, `spacy` will be installed. You also need to download a language model:
+        ```bash
+        python -m spacy download en_core_web_sm
+        ```
+    *   **`gender-guesser` (for Gender Analysis)**: Used by `GenderAnalyzer`. It will be installed as a dependency.
 
 ## Getting Started
 

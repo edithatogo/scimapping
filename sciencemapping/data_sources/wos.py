@@ -162,29 +162,38 @@ def _parse_wos_record(record: metaknowledge.Record) -> Optional[Dict[str, Any]]:
             entry: Dict[str, Any] = {"source_of_info": "wos_FU_field", "raw_funding_text": fu_item_str}
             grant_ids_for_entry = []
 
-            # Try to parse "Agency Name (Grant1, Grant2)" format
-            # Regex to capture agency and grant numbers. Grant numbers can be tricky.
-            # This pattern tries to capture text before parentheses as agency, and content within as grants.
-            match = re.match(r'(.+?)\s*\((.+)\)', fu_item_str)
-            funder_name_str = ""
-            if match:
-                funder_name_str = match.group(1).strip()
-                grants_str = match.group(2)
-                # Split grants by comma, common conjunctions like 'and', or semicolon if nested
-                # This simplistic split by comma might need refinement for complex grant strings.
-                grant_ids_for_entry.extend([g.strip() for g in re.split(r'[;,]\s*|and\s+', grants_str) if g.strip()])
-            else: # Assume the whole part is the funder name if no parentheses with grants
-                funder_name_str = fu_item_str
+            grant_ids_for_entry = []
+            funder_name_str = fu_item_str # Default to whole string as funder name
 
-            if funder_name_str:
-                entry["funder_name"] = funder_name_str
+            # Try to find grants first, usually in the last parentheses
+            # e.g., "Agency Name (Grant1; Grant2)" or "Agency (Acronym) (Grant A)"
+            grants_part_match = re.search(r'\(([^()]*)\)$', fu_item_str)
+
+            if grants_part_match:
+                grants_content = grants_part_match.group(1)
+                # The part before this match is the funder name (potentially with acronym)
+                funder_name_str = fu_item_str[:grants_part_match.start()].strip()
+
+                # Split grants by comma, 'and', or semicolon
+                grant_ids_for_entry.extend([g.strip() for g in re.split(r'[;,]\s*|and\s+', grants_content) if g.strip()])
+            else:
+                # No clear grant part in parentheses at the end, assume whole string is funder name
+                # (already set by funder_name_str = fu_item_str)
+                pass # funder_name_str is already fu_item_str
+
+            if funder_name_str: # Ensure funder_name_str is not empty
+                entry["funder_name"] = funder_name_str.strip() # Ensure stripped
             if grant_ids_for_entry:
                 entry["grant_ids"] = grant_ids_for_entry
 
-            if funder_name_str or grant_ids_for_entry:
+            # Only add entry if we have a funder name or grant IDs
+            if entry.get("funder_name") or entry.get("grant_ids"):
                  funding_entries.append(entry)
-            elif fu_item_str: # If nothing specific parsed but FU string exists
-                funding_entries.append({"raw_funding_text": fu_item_str, "source_of_info": "wos_FU_field_unparsed"})
+            elif fu_item_str: # If nothing specific parsed but original FU string exists
+                # This case should ideally be covered by funder_name_str being set to fu_item_str
+                # but as a fallback for unparsed non-empty strings:
+                if "funder_name" not in entry and "grant_ids" not in entry: # Re-check if it's truly unparsed
+                    funding_entries.append({"raw_funding_text": fu_item_str, "funder_name":fu_item_str, "source_of_info": "wos_FU_field_as_funder_name"})
 
 
     # Store FX (Funding Text) if available. This is typically free text acknowledgements.

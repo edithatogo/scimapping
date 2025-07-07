@@ -124,38 +124,42 @@ def fetch_scopus_abstract_details(eid: str, api_key: Optional[str] = None) -> Op
 
         # Process structured funding information from ab_ret.funding
         # ab_ret.funding is a list of namedtuples: Funding(agency, agency_acronym, grant_id, country)
-        funding_entries: List[Dict[str, Any]] = []
+        funding_entries_list: List[Dict[str, Any]] = []
         if hasattr(ab_ret, 'funding') and ab_ret.funding:
             for fund_info in ab_ret.funding:
-                entry: Dict[str, Any] = {"source_of_info": "scopus_api_abstract_retrieval"}
-                funder_name = getattr(fund_info, 'agency', None)
-                # Prefer full agency name, fallback to acronym if name is too generic like "Funding Organization"
-                if funder_name and funder_name.lower() != "funding organization":
-                    entry["funder_name"] = funder_name
-                elif hasattr(fund_info, 'agency_acronym') and getattr(fund_info, 'agency_acronym'):
-                    entry["funder_name"] = getattr(fund_info, 'agency_acronym')
+                entry: Dict[str, Any] = {"source_of_info": "scopus_api_structured_funding"}
+                funder_name_candidate = getattr(fund_info, 'agency', None)
+                funder_acronym = getattr(fund_info, 'agency_acronym', None)
 
-                grant_id = getattr(fund_info, 'grant_id', None)
-                if grant_id:
-                    entry["grant_ids"] = [grant_id] # Store as list
+                final_funder_name = None
+                if funder_name_candidate and isinstance(funder_name_candidate, str) and \
+                   funder_name_candidate.lower().strip() not in ["funding organization", "unknown", "", None]:
+                    final_funder_name = funder_name_candidate.strip()
+                elif funder_acronym and isinstance(funder_acronym, str) and funder_acronym.strip(): # Fallback to acronym
+                    final_funder_name = funder_acronym.strip()
 
-                # Store raw text from funding_text if available and if this entry seems minimal
-                # This part is more heuristic as funding_text is a single string for all funding.
-                if hasattr(ab_ret, 'funding_text') and ab_ret.funding_text and not entry.get("grant_ids"):
-                     entry["raw_funding_text"] = ab_ret.funding_text # Associate with first funder if multiple?
-                                                                    # Or better, store funding_text separately.
+                if final_funder_name:
+                    entry["funder_name"] = final_funder_name
+
+                grant_id_val = getattr(fund_info, 'grant_id', None)
+                if grant_id_val and isinstance(grant_id_val, str) and grant_id_val.strip():
+                    # grant_id from pybliometrics can sometimes be a semicolon-separated list
+                    entry["grant_ids"] = [g.strip() for g in grant_id_val.split(';') if g.strip()]
+
+                # Scopus funder ID might be available, e.g. fund_info.get('id') or similar if pybliometrics adds it
+                # For now, this is not standard in the Funding namedtuple from older pybliometrics versions.
 
                 if entry.get("funder_name") or entry.get("grant_ids"):
-                    funding_entries.append(entry)
+                    funding_entries_list.append(entry)
 
-        if hasattr(ab_ret, 'funding_text') and ab_ret.funding_text:
-            details['acknowledgements_text_scopus_funding'] = ab_ret.funding_text
+        # Store the full funding_text for potential NLP by FundingAnalyzer or direct display
+        if hasattr(ab_ret, 'funding_text') and ab_ret.funding_text and isinstance(ab_ret.funding_text, str):
+            details['acknowledgements_text_scopus'] = ab_ret.funding_text.strip()
 
-
-        if funding_entries:
-            details["funding_entries"] = funding_entries
+        if funding_entries_list:
+            details["funding_entries"] = funding_entries_list
         else:
-            details["funding_entries"] = None
+            details["funding_entries"] = None # Explicitly set to None if empty
 
         return details
     except FileNotFoundError:
@@ -241,6 +245,8 @@ def _parse_scopus_search_result(item: Any) -> Dict[str, Any]:
         "abstract": getattr(item, 'description', None),
         "keywords": keywords,
         "document_type": document_type,
+        "funding_entries": None,  # Initialize, details usually from AbstractRetrieval
+        "acknowledgements_text_scopus": getattr(item, 'funding_text', None), # If somehow available in search results
         "source_type": "scopus",
         "raw_search_result": raw_data
     }

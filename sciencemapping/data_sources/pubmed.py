@@ -88,19 +88,65 @@ def _parse_pubmed_article(article_data: Dict[str, Any]) -> Dict[str, Any]:
     if keywords is None: # Sometimes it can be None instead of an empty list
         keywords = []
 
+    # Funding Information from PubMed 'grants' (GR field in XML)
+    # pymed puts this into article.grant_list, where each item is a string.
+    # Example grant string: "R01 CA123456/CA/NCI NIH HHS/United States"
+    # Or "Wellcome Trust 098765/Z/12/Z"
+    # Or "K99 AG000000//NIH HHS/United States" (empty part)
+    funding_entries: List[Dict[str, Any]] = []
+    raw_grants = article_data.get("grants")
+    if isinstance(raw_grants, list):
+        for grant_str_raw in raw_grants:
+            grant_str = str(grant_str_raw).strip() # Ensure it's a string and stripped
+            if not grant_str:
+                continue
 
-    return {
+            entry: Dict[str, Any] = {
+                "raw_funding_text": grant_str,
+                "source_of_info": "pubmed_GR_tag"
+            }
+            parts = [p.strip() for p in grant_str.split('/') if p.strip()] # Split and remove empty parts
+
+            # Grant ID is typically the first part.
+            if parts and parts[0]:
+                entry["grant_ids"] = [parts[0]]
+
+            # Agency can be complex. Often parts 2 and 3 combined or just one of them.
+            # Full agency name (e.g., "NCI NIH HHS") is often preferred over acronym ("CA").
+            funder_names_parts = []
+            if len(parts) > 2 and parts[2]: # Prefer the 3rd part if it exists (often fuller agency name)
+                funder_names_parts.append(parts[2])
+            if len(parts) > 1 and parts[1]: # Add 2nd part (often acronym or sub-agency)
+                funder_names_parts.append(parts[1])
+
+            if funder_names_parts:
+                funder_name_str = " ".join(funder_names_parts) # Join parts, e.g. "NCI NIH HHS CA"
+                if funder_name_str:
+                     entry["funder_name"] = funder_name_str
+
+            if entry.get("funder_name") or entry.get("grant_ids"):
+                funding_entries.append(entry)
+            else: # Only raw text, less structured but still capture
+                # This case might be redundant if grant_str is guaranteed to be non-empty here.
+                funding_entries.append({
+                    "raw_funding_text": grant_str,
+                    "source_of_info": "pubmed_GR_tag_unparsed"
+                })
+
+    parsed_record = {
         "title": article_data.get("title"),
-        "authors": authors_list, # List of strings
+        "authors": authors_list,
         "journal": article_data.get("journal"),
         "year": year,
         "doi": article_data.get("doi"),
-        "pubmed_id": article_data.get("pubmed_id").split("\n")[0], # Clean up potential extra lines
+        "pubmed_id": article_data.get("pubmed_id").split("\n")[0],
         "abstract": article_data.get("abstract"),
-        "keywords": keywords, # List of strings
-        "source_type": "pubmed", # To identify the origin of the data
-        "raw_data": article_data # Optional: include the raw data for more detailed analysis later
+        "keywords": keywords,
+        "funding_entries": funding_entries if funding_entries else None,
+        "source_type": "pubmed",
+        "raw_data": article_data
     }
+    return parsed_record
 
 if __name__ == "__main__":
     # Example usage:

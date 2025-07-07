@@ -47,8 +47,10 @@ The exact availability of these fields can vary by source and the specific recor
 *   **Notes**:
     *   This method parses local files exported from the Web of Science interface.
     *   The `sciencemapping.data_sources.wos` module uses `metaknowledge` for parsing and then maps fields to the common internal format.
-    *   Ensure your WoS export includes fields like TI, AU, SO, PY, AB, DE, ID, DI, UT, TC for comprehensive parsing.
-    *   **Funding Data**: Parses `FU` (Funding Agency and Grant Number) field into `funding_entries`. Each entry in `FU` (if semicolon separated) is processed to identify funder and grant IDs. The raw `FX` (Funding Text) field is stored in `acknowledgements_text_fx` for potential NLP by `FundingAnalyzer`. If `FU` is empty but `FX` exists, `FX` content is added as a raw entry to `funding_entries`.
+    *   Ensure your WoS export includes fields like TI, AU, SO, PY, AB, DE, ID, DI, UT, TC, FU, FX for comprehensive parsing.
+    *   **Funding Data**:
+        *   The `FU` (Funding Agency and Grant Number) field is processed to populate `funding_entries`. Each semicolon-separated sub-entry in `FU` is parsed: grant numbers are extracted from the content of the last parentheses (e.g., "Agency (Grants)"), and the preceding text is taken as the funder name.
+        *   The raw `FX` (Funding Text) field is stored in the record as `acknowledgements_text_fx`. If `FU` yields no data but `FX` exists, the content of `FX` is added as a raw entry to `funding_entries`.
 
 ## 3. Scopus
 

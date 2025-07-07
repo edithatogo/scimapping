@@ -1,11 +1,14 @@
 from typing import List, Dict, Any, Optional
 import warnings
+import re # For DOI extraction from error messages
 
 # Attempt to import habanero for CrossRef API interaction
 HABANERO_AVAILABLE = False
+Crossref_class = None # Placeholder for habanero.Crossref
 try:
     from habanero import Crossref
     HABANERO_AVAILABLE = True
+    Crossref_class = Crossref
     # print("Enrichment: habanero library loaded successfully.") # For debugging
 except ImportError:
     warnings.warn(
@@ -13,138 +16,175 @@ except ImportError:
         "Install with 'pip install habanero'.",
         ImportWarning
     )
-    Crossref = None # Placeholder if not available
 
 # Default mailto for CrossRef polite pool
 DEFAULT_CROSSREF_MAILTO = "sciencemappinglib_user@example.com" # Users should be encouraged to change this
 
+# Simple Funder Name Normalization (can be expanded or moved to a shared utility)
+_FUNDER_NORMALIZATION_MAP_ENRICH = {
+    "national science foundation": "National Science Foundation",
+    "nsf": "National Science Foundation",
+    "u. s. national science foundation": "National Science Foundation",
+    "national institutes of health": "National Institutes of Health",
+    "nih": "National Institutes of Health",
+    "u.s. national institutes of health": "National Institutes of Health",
+    "erc": "European Research Council",
+    "european research council": "European Research Council",
+    "wellcome trust": "Wellcome Trust",
+    "the wellcome trust": "Wellcome Trust",
+    "medical research council": "Medical Research Council",
+    "mrc": "Medical Research Council",
+}
+
+def _normalize_funder_name_enrich(name: str) -> str:
+    if not name or not isinstance(name, str):
+        return "Unknown Funder" # Or return the input if preferred for non-strings
+    stripped_name = name.strip()
+    return _FUNDER_NORMALIZATION_MAP_ENRICH.get(stripped_name.lower(), stripped_name)
+
 def enrich_records_with_crossref_funding(
     records: List[Dict[str, Any]],
     mailto: Optional[str] = DEFAULT_CROSSREF_MAILTO,
-    batch_size: int = 10 # Number of DOIs to query in one Crossref API call if supported by habanero
+    batch_size: int = 20 # CrossRef API best practice for /works?ids= is around 20-50 DOIs
 ) -> List[Dict[str, Any]]:
     """
     Enriches a list of publication records with funding information from CrossRef using their DOIs.
+    Funding information is merged into the 'funding_entries' list of each record.
 
     Args:
         records: A list of records in the common internal format. Each record should ideally have a 'doi' field.
         mailto: An email address for CrossRef's polite API pool. Highly recommended.
-        batch_size: Number of DOIs to include in a single batch request to Crossref if using `works(ids=...)`.
-                    (Note: habanero's `works(ids=...)` typically handles batching internally to some extent,
-                     but this parameter is kept for conceptual batching or if direct requests were made).
+        batch_size: Number of DOIs to include in a single batch request to CrossRef.
 
     Returns:
-        The list of records, potentially augmented with a 'crossref_funding' field.
-        Each 'crossref_funding' field will contain a list of funder objects.
+        The list of records, potentially augmented with new entries in the 'funding_entries' field.
     """
-    if not HABANERO_AVAILABLE or Crossref is None:
+    if not HABANERO_AVAILABLE or Crossref_class is None:
         warnings.warn("Enrichment: habanero library not available. Skipping CrossRef funding enrichment.", RuntimeWarning)
         return records
 
     if not mailto:
         warnings.warn(
             f"Enrichment: No mailto email provided for CrossRef polite pool. Using default: {DEFAULT_CROSSREF_MAILTO}. "
-            "It's recommended to set a custom email via ScienceMapper or directly.",
+            "It's recommended to set a custom email.",
             UserWarning
         )
         mailto = DEFAULT_CROSSREF_MAILTO
 
-    cr = Crossref(mailto=mailto)
+    cr = Crossref_class(mailto=mailto)
 
-    enriched_records: List[Dict[str, Any]] = []
-    dois_to_query: List[str] = []
-    record_indices_by_doi: Dict[str, List[int]] = {} # Handle cases where multiple records might share a DOI
+    # Create copies of records to modify them, or modify in place if preferred by overall design
+    # For now, modifying copies passed in. The ScienceMapper reassigns self._records.
+    # enriched_records: List[Dict[str, Any]] = [rec.copy() for rec in records] # If modifying copies
+    # If modifying in place, ensure the input `records` list objects are the ones to change.
+    # Let's assume `records` can be modified directly for this util function.
+
+    dois_to_query_map: Dict[str, List[int]] = {} # Maps clean DOI to list of original record indices
 
     for i, record in enumerate(records):
         doi = record.get("doi")
-        # Clean DOI: remove "https://doi.org/" prefix if present
         if doi and isinstance(doi, str):
-            if doi.startswith("https://doi.org/"):
-                doi = doi[len("https://doi.org/"):]
-            if doi: # Ensure DOI is not empty after stripping
-                dois_to_query.append(doi)
-                if doi not in record_indices_by_doi:
-                    record_indices_by_doi[doi] = []
-                record_indices_by_doi[doi].append(i)
-        enriched_records.append(record.copy()) # Start with a copy to avoid modifying original list items directly
+            clean_doi = doi.replace("https://doi.org/", "").strip().lower() # Normalize for lookup
+            if clean_doi:
+                if clean_doi not in dois_to_query_map:
+                    dois_to_query_map[clean_doi] = []
+                dois_to_query_map[clean_doi].append(i)
 
-    if not dois_to_query:
-        print("Enrichment: No DOIs found in records to query CrossRef.")
-        return enriched_records
+    if not dois_to_query_map:
+        print("Enrichment: No valid DOIs found in records to query CrossRef.")
+        return records
 
-    print(f"Enrichment: Querying CrossRef for {len(set(dois_to_query))} unique DOIs...")
+    unique_clean_dois = sorted(list(dois_to_query_map.keys()))
+    print(f"Enrichment: Querying CrossRef for {len(unique_clean_dois)} unique DOIs...")
 
-    # Process DOIs in batches using cr.works(ids=...)
-    # habanero's works(ids=...) can take a list of DOIs.
-    # It handles making multiple requests if the list is too long for a single URL.
-    unique_dois = sorted(list(set(dois_to_query))) # Process unique DOIs to avoid redundant API calls
-
-    # We can iterate through unique_dois in batches for more control or if there's an API limit
-    # For simplicity, let's assume habanero handles large DOI lists well or we're passing smaller chunks.
-    # A more robust implementation might chunk unique_dois if len(unique_dois) is very large.
-
-    # For this conceptual implementation, let's process in batches as defined by batch_size
-    # although habanero's .works(ids=) might do its own internal batching/multiple requests.
-    for i in range(0, len(unique_dois), batch_size):
-        doi_batch = unique_dois[i:i + batch_size]
+    for i in range(0, len(unique_clean_dois), batch_size):
+        doi_batch = unique_clean_dois[i:i + batch_size]
         if not doi_batch:
             continue
 
         try:
-            # The `works` method with `ids` parameter fetches multiple DOIs
-            # It returns a list of responses, one for each DOI that was found.
-            # Each item in the list is a dict with 'status', 'message-type', 'message-version', 'message'.
-            results = cr.works(ids=doi_batch)
+            # habanero cr.works(ids=...) returns a list of dicts, one for each result
+            # Each dict has 'status', 'message-type', 'message'
+            api_results_batch = cr.works(ids=doi_batch)
 
-            for res_item in results:
-                if res_item and res_item.get('status') == 'ok' and 'message' in res_item:
-                    message = res_item['message']
-                    retrieved_doi = message.get('DOI') # DOI in the response
-                    if not retrieved_doi: # Should not happen if status is ok and DOI was queried
-                        continue
+            if not isinstance(api_results_batch, list): # Handle if API returns a single item not in a list
+                api_results_batch = [api_results_batch] if api_results_batch else []
 
-                    # Normalize retrieved DOI for matching (e.g. case)
-                    retrieved_doi_normalized = retrieved_doi.lower()
+            for res_item in api_results_batch:
+                if not isinstance(res_item, dict) or res_item.get('status') != 'ok' or 'message' not in res_item :
+                    queried_doi_for_error = "unknown_doi_in_batch"
+                    if isinstance(res_item, dict):
+                        # Try to find the problematic DOI from the request if possible, or from error message
+                        # This part is tricky as habanero might not directly map errors to input DOIs in a batch failure.
+                        # For now, a generic warning for the batch.
+                        url_str = res_item.get('URL', res_item.get('url', '')) # Check common keys for URL
+                        if url_str and isinstance(url_str, str):
+                             url_match = re.search(r'(10\.\d{4,9}/[-._;()/:A-Z0-9]+)', url_str, re.IGNORECASE)
+                             if url_match: queried_doi_for_error = url_match.group(1)
+                    status = res_item.get('status', 'unknown_status') if isinstance(res_item, dict) else 'malformed_response_item'
+                    warnings.warn(f"Enrichment: CrossRef API issue for a DOI (batch includes: {doi_batch[0]}, ...): Status {status}", RuntimeWarning)
+                    continue
 
-                    funding_data_list = []
-                    if "funder" in message and isinstance(message["funder"], list):
-                        for funder_info in message["funder"]:
-                            funder_name = funder_info.get("name")
-                            funder_doi = funder_info.get("DOI") # Funder Registry ID
-                            awards = funder_info.get("award", []) # List of grant numbers/strings
+                message = res_item['message']
+                retrieved_doi_from_message = message.get('DOI')
+                if not retrieved_doi_from_message or not isinstance(retrieved_doi_from_message, str):
+                    continue
 
-                            funder_entry = {}
-                            if funder_name: funder_entry["name"] = funder_name
-                            if funder_doi: funder_entry["funder_doi"] = funder_doi
-                            if awards: funder_entry["awards"] = awards if isinstance(awards, list) else [str(awards)]
+                retrieved_doi_clean = retrieved_doi_from_message.strip().lower()
 
-                            if funder_entry: # Only add if there's some info
-                                funding_data_list.append(funder_entry)
+                crossref_funding_entries_for_this_doi: List[Dict[str, Any]] = []
+                if "funder" in message and isinstance(message["funder"], list):
+                    for funder_info in message["funder"]:
+                        if not isinstance(funder_info, dict): continue
+                        entry: Dict[str, Any] = {"source_of_info": "crossref_api"}
 
-                    if funding_data_list:
-                        # Find original record(s) by this DOI and add funding info
-                        # Normalize query DOI for matching record_indices_by_doi keys
-                        for original_record_index in record_indices_by_doi.get(retrieved_doi_normalized, []):
-                             if original_record_index < len(enriched_records): # Boundary check
-                                enriched_records[original_record_index]["crossref_funding"] = funding_data_list
-                        # Also check original case DOI if normalization is an issue
-                        for original_record_index in record_indices_by_doi.get(retrieved_doi, []):
-                             if original_record_index < len(enriched_records) and "crossref_funding" not in enriched_records[original_record_index]:
-                                enriched_records[original_record_index]["crossref_funding"] = funding_data_list
-                elif res_item and res_item.get('status') != 'ok':
-                    # Handle cases where a specific DOI might not be found or causes an error
-                    # res_item might be {'status': 'resource-not-found', ...}
-                    # For now, just print a warning or log.
-                    queried_doi_for_error = res_item.get('message', {}).get('DOI', 'unknown DOI in batch') if isinstance(res_item.get('message'), dict) else 'unknown DOI in batch'
-                    warnings.warn(f"Enrichment: CrossRef API issue for DOI '{queried_doi_for_error}': Status {res_item.get('status')}", RuntimeWarning)
+                        funder_name = funder_info.get("name")
+                        if funder_name and isinstance(funder_name, str):
+                            entry["funder_name"] = _normalize_funder_name_enrich(funder_name)
 
+                        funder_registry_id = funder_info.get("DOI") # CrossRef Funder Registry DOI
+                        if funder_registry_id and isinstance(funder_registry_id, str) and funder_registry_id.startswith("10.13039/"):
+                            entry["funder_crossref_id"] = funder_registry_id
 
-        except Exception as e: # Catch broader errors from habanero or network issues
-            warnings.warn(f"Enrichment: Error during CrossRef API call for batch {doi_batch}: {type(e).__name__} - {e}", RuntimeWarning)
-            # Continue to next batch if one fails
+                        awards = funder_info.get("award", [])
+                        if awards:
+                            current_awards = [str(aw).strip() for aw in (awards if isinstance(awards, list) else [awards]) if str(aw).strip()]
+                            if current_awards:
+                                entry["grant_ids"] = current_awards
+
+                        if entry.get("funder_name") or entry.get("grant_ids"): # Only add if meaningful
+                            crossref_funding_entries_for_this_doi.append(entry)
+
+                if crossref_funding_entries_for_this_doi:
+                    for original_record_index in dois_to_query_map.get(retrieved_doi_clean, []):
+                        # Ensure 'funding_entries' list exists on the record
+                        if "funding_entries" not in records[original_record_index] or \
+                           records[original_record_index]["funding_entries"] is None:
+                            records[original_record_index]["funding_entries"] = []
+
+                        # Append new CrossRef entries.
+                        # More sophisticated merging/deduplication could be added here if needed.
+                        # For now, append all, assuming FundingAnalyzer might consolidate later or user wants all sources.
+                        for cr_entry in crossref_funding_entries_for_this_doi:
+                            # Basic check to avoid adding exact same funder-grant text if already present from another source
+                            # This check is very simple. True deduplication is complex.
+                            is_duplicate_simple = False
+                            for existing_entry in records[original_record_index]["funding_entries"]: # type: ignore
+                                if existing_entry.get("funder_name") == cr_entry.get("funder_name") and \
+                                   set(existing_entry.get("grant_ids", [])) == set(cr_entry.get("grant_ids",[])):
+                                    is_duplicate_simple = True
+                                    # Update existing entry with CrossRef Funder ID if missing
+                                    if "funder_crossref_id" in cr_entry and "funder_crossref_id" not in existing_entry:
+                                        existing_entry["funder_crossref_id"] = cr_entry["funder_crossref_id"]
+                                    break
+                            if not is_duplicate_simple:
+                                records[original_record_index]["funding_entries"].append(cr_entry) # type: ignore
+
+        except Exception as e:
+            warnings.warn(f"Enrichment: Error during CrossRef API call for batch starting with DOI {doi_batch[0] if doi_batch else 'N/A'}: {type(e).__name__} - {e}", RuntimeWarning)
 
     print(f"Enrichment: CrossRef funding enrichment process completed.")
-    return enriched_records
+    return records # Return the (potentially) modified records list
 
 
 if __name__ == "__main__":
@@ -153,25 +193,20 @@ if __name__ == "__main__":
         print("habanero library not found. Cannot run CrossRef enrichment example.")
     else:
         sample_records = [
-            {"title": "Paper with DOI", "doi": "10.1038/nature12373", "authors": ["A1", "A2"]}, # Valid DOI for Nature paper
-            {"title": "Another Paper", "doi": "10.1126/science.1172133", "authors": ["B1"]}, # Valid DOI for Science paper
+            {"title": "Paper with DOI", "doi": "10.1038/nature12373", "authors": ["A1", "A2"], "funding_entries": None},
+            {"title": "Another Paper", "doi": "https://doi.org/10.1126/science.1172133", "authors": ["B1"], "funding_entries": [{"funder_name": "Local Grant", "grant_ids":["LG1"]}]},
             {"title": "Paper without DOI", "authors": ["C1"]},
             {"title": "Paper with bad DOI", "doi": "10.invalid/doi", "authors": ["D1"]},
         ]
 
-        print("Original records:")
-        for rec in sample_records: print(f"  {rec.get('title')}, DOI: {rec.get('doi')}")
+        print("Original records (funding part):")
+        for rec in sample_records: print(f"  Title: {rec.get('title')}, Initial Funding: {rec.get('funding_entries')}")
 
-        # It's good practice to set your email for the polite pool
-        # For real use, replace with your actual email.
-        enriched_records_list = enrich_records_with_crossref_funding(sample_records, mailto="test_user@example.com")
+        enriched_records_list = enrich_records_with_crossref_funding(sample_records, mailto="sciencemappinglib_user@example.com")
 
-        print("\nEnriched records:")
+        print("\nEnriched records (funding part):")
         for rec in enriched_records_list:
             print(f"  Title: {rec.get('title')}")
-            if "crossref_funding" in rec:
-                print(f"    CrossRef Funding: {rec['crossref_funding']}")
-            else:
-                print(f"    CrossRef Funding: Not found or DOI missing/invalid.")
+            print(f"    Funding Entries: {rec.get('funding_entries')}")
 
     print("\nCrossRef enrichment example finished.")

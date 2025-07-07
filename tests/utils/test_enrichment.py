@@ -73,11 +73,11 @@ class TestCrossRefEnrichment(unittest.TestCase):
         # Make copies of records for each test to avoid interference
         self.records = [rec.copy() for rec in SAMPLE_RECORDS_FOR_ENRICHMENT]
 
-    @patch('sciencemapping.utils.enrichment.Crossref') # Inner
-    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True) # Outer
-    def test_enrichment_success_multiple_dois(self, MockCrossref_arg): # Corrected signature
+    @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
+    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
+    def test_enrichment_success_multiple_dois(self, MockCrossref_class_arg): # Renamed arg for clarity
         """Test successful enrichment for multiple DOIs, including DOI normalization and batching."""
-        mock_cr_instance = MockCrossref_arg.return_value # Use the passed mock argument
+        mock_cr_instance = MockCrossref_class_arg.return_value # Corrected to MockCrossref_class_arg
 
         # Simulate cr.works(ids=...) behavior: it takes a list of DOIs
         # and returns a list of corresponding results.
@@ -96,7 +96,7 @@ class TestCrossRefEnrichment(unittest.TestCase):
 
         enriched = enrich_records_with_crossref_funding(self.records, mailto="test@example.com", batch_size=2)
 
-        MockCrossref_arg.assert_called_once_with(mailto="test@example.com") # Use the passed mock argument
+        MockCrossref_class_arg.assert_called_once_with(mailto="test@example.com") # Corrected to MockCrossref_class_arg
 
         # Check calls to cr.works - should be batched
         # Unique DOIs: doi1, doi2, doi4, doi_error (4 unique DOIs)
@@ -115,30 +115,51 @@ class TestCrossRefEnrichment(unittest.TestCase):
         self.assertIn("10.1234/doi_error", all_queried_dois_in_calls)
 
 
-        # Record 0 (Paper 1, doi1)
-        self.assertIn("crossref_funding", enriched[0])
-        self.assertEqual(len(enriched[0]["crossref_funding"]), 2)
-        self.assertEqual(enriched[0]["crossref_funding"][0]["name"], "National Science Foundation")
-        self.assertIn("NSF Grant 123", enriched[0]["crossref_funding"][0]["awards"])
+        # Record 0 (Paper 1, clean_doi: 10.1234/doi1)
+        self.assertNotIn("crossref_funding", enriched[0]) # Old field should not exist
+        self.assertIn("funding_entries", enriched[0])
+        self.assertIsNotNone(enriched[0]["funding_entries"])
+        # Expected entries from MOCK_CROSSREF_RESPONSE_DOI1
+        # Funder 1: NSF, Grants: ["NSF Grant 123", "Award ABC"], CrossRef ID: "10.13039/100000001"
+        # Funder 2: Internal Funding
+        nsf_entry_doi1 = next((e for e in enriched[0]["funding_entries"] if e.get("funder_name") == "National Science Foundation"), None)
+        self.assertIsNotNone(nsf_entry_doi1)
+        self.assertEqual(nsf_entry_doi1.get("funder_crossref_id"), "10.13039/100000001")
+        self.assertListEqual(sorted(nsf_entry_doi1.get("grant_ids", [])), sorted(["NSF Grant 123", "Award ABC"]))
+        self.assertEqual(nsf_entry_doi1.get("source_of_info"), "crossref_api")
 
-        # Record 1 (Paper 2, doi2) - DOI was normalized
-        self.assertIn("crossref_funding", enriched[1])
-        self.assertEqual(enriched[1]["crossref_funding"][0]["name"], "Wellcome Trust")
-        self.assertIn("WT Grant XYZ", enriched[1]["crossref_funding"][0]["awards"])
+        internal_funding_entry_doi1 = next((e for e in enriched[0]["funding_entries"] if e.get("funder_name") == "Internal Funding"), None)
+        self.assertIsNotNone(internal_funding_entry_doi1)
+        self.assertNotIn("grant_ids", internal_funding_entry_doi1) # No awards for this one in mock
+        self.assertEqual(internal_funding_entry_doi1.get("source_of_info"), "crossref_api")
+        self.assertEqual(len(enriched[0]["funding_entries"]), 2)
+
+        # Record 1 (Paper 2, clean_doi: 10.1234/doi2)
+        self.assertNotIn("crossref_funding", enriched[1])
+        self.assertIn("funding_entries", enriched[1])
+        wt_entry_doi2 = next((e for e in enriched[1]["funding_entries"] if e.get("funder_name") == "Wellcome Trust"), None)
+        self.assertIsNotNone(wt_entry_doi2)
+        self.assertListEqual(wt_entry_doi2.get("grant_ids", []), ["WT Grant XYZ"])
+        self.assertEqual(wt_entry_doi2.get("source_of_info"), "crossref_api")
+        self.assertEqual(len(enriched[1]["funding_entries"]), 1)
+
 
         # Record 2 (Paper 3, no DOI)
-        self.assertNotIn("crossref_funding", enriched[2])
+        self.assertIsNone(enriched[2].get("funding_entries")) # Or assertNotIn if key is not added for None
 
         # Record 3 (Paper 4, doi4, no funder info from CrossRef)
-        self.assertNotIn("crossref_funding", enriched[3]) # No "funder" key in response
+        self.assertIsNone(enriched[3].get("funding_entries"))
 
-        # Record 4 (Paper 5, duplicate doi1)
-        self.assertIn("crossref_funding", enriched[4])
-        self.assertEqual(len(enriched[4]["crossref_funding"]), 2) # Should have same data as Paper 1
-        self.assertEqual(enriched[4]["crossref_funding"][0]["name"], "National Science Foundation")
+        # Record 4 (Paper 5, duplicate clean_doi: 10.1234/doi1)
+        self.assertNotIn("crossref_funding", enriched[4])
+        self.assertIn("funding_entries", enriched[4])
+        self.assertEqual(len(enriched[4]["funding_entries"]), 2) # Should have same data as Paper 1
+        nsf_entry_doi1_dup = next((e for e in enriched[4]["funding_entries"] if e.get("funder_name") == "National Science Foundation"), None)
+        self.assertIsNotNone(nsf_entry_doi1_dup)
+        self.assertEqual(nsf_entry_doi1_dup.get("funder_crossref_id"), "10.13039/100000001")
 
         # Record 5 (Paper 6, doi_error)
-        self.assertNotIn("crossref_funding", enriched[5]) # API returned error for this DOI
+        self.assertIsNone(enriched[5].get("funding_entries"))
 
     @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', False)
     def test_enrichment_habanero_not_available(self): # Removed mock_habanero_false argument
@@ -149,11 +170,11 @@ class TestCrossRefEnrichment(unittest.TestCase):
             self.assertEqual(enriched, self.records) # Should return original records
             self.assertTrue(any("habanero library not available" in str(warn.message) for warn in w))
 
-    @patch('sciencemapping.utils.enrichment.Crossref') # Inner, provides MockCrossref_arg
-    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True) # Outer, constant, no arg
-    def test_enrichment_api_call_general_exception(self, MockCrossref_arg): # Corrected signature, already using MockCrossref_arg
+    @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
+    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
+    def test_enrichment_api_call_general_exception(self, MockCrossref_class_arg):
         """Test handling of a general exception during API call."""
-        mock_cr_instance = MockCrossref_arg.return_value
+        mock_cr_instance = MockCrossref_class_arg.return_value
         mock_cr_instance.works.side_effect = Exception("Network timeout")
 
         with warnings.catch_warnings(record=True) as w:
@@ -172,16 +193,16 @@ class TestCrossRefEnrichment(unittest.TestCase):
     def test_enrichment_no_dois_in_records(self):
         """Test enrichment when no records have DOIs."""
         records_no_doi = [{"title": "No DOI paper"}]
-        with patch('builtins.print') as mock_print: # To check the info print
+        with patch('builtins.print') as mock_print:
             enriched = enrich_records_with_crossref_funding(records_no_doi)
             self.assertEqual(enriched, records_no_doi)
-            mock_print.assert_any_call("Enrichment: No DOIs found in records to query CrossRef.")
+            mock_print.assert_any_call("Enrichment: No valid DOIs found in records to query CrossRef.") # Updated string
 
-    @patch('sciencemapping.utils.enrichment.Crossref') # Inner
-    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True) # Outer
-    def test_enrichment_default_mailto(self, MockCrossref_arg): # Corrected signature, already using MockCrossref_arg
+    @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
+    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
+    def test_enrichment_default_mailto(self, MockCrossref_class_arg):
         """Test that default mailto is used if none provided to function."""
-        mock_cr_instance = MockCrossref_arg.return_value
+        mock_cr_instance = MockCrossref_class_arg.return_value
         mock_cr_instance.works.return_value = [] # No results needed, just check mailto
 
         with warnings.catch_warnings(record=True) as w:
@@ -189,7 +210,87 @@ class TestCrossRefEnrichment(unittest.TestCase):
             warnings.filterwarnings("ignore", message="No mailto email provided for CrossRef polite pool.")
             enrich_records_with_crossref_funding([{"doi": "10.1/test"}], mailto=None)
 
-        MockCrossref_arg.assert_called_once_with(mailto=DEFAULT_CROSSREF_MAILTO) # Use the passed mock argument
+        MockCrossref_class_arg.assert_called_once_with(mailto=DEFAULT_CROSSREF_MAILTO)
+
+    @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
+    @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
+    def test_enrichment_merges_with_existing_funding_entries(self, MockCrossref_class_arg): # Argument already correctly named
+        """Test that CrossRef data appends/merges with existing funding_entries."""
+        mock_cr_instance = MockCrossref_class_arg.return_value # Use the correct argument name
+
+        # Mock CrossRef response for a DOI
+        doi1_cr_response = {
+            "status": "ok", "message-type": "work", "message-version": "1.0.0",
+            "message": {
+                "DOI": "10.1000/doi1",
+                "funder": [{ "name": "CrossRef Funder X", "award": ["CR-X1"], "DOI": "10.13039/FXFUND" }]
+            }
+        }
+        # This lambda will be the side_effect for cr.works(ids=...)
+        def works_side_effect_merge(ids=None):
+            if ids == ["10.1000/doi1"]: # Make sure to match cleaned DOI
+                return [doi1_cr_response]
+            # Handle the dup DOI case separately or make side_effect more general
+            if ids == ["10.1000/doi_dup"]: # Cleaned DOI
+                 dup_doi_cr_response = {
+                    "status": "ok", "message-type": "work", "message-version": "1.0.0",
+                    "message": {
+                        "DOI": "10.1000/doi_dup",
+                        "funder": [{ "name": "NSF", "DOI": "10.13039/100000001", "award": ["CR-X1"] }]
+                    }
+                }
+                 return [dup_doi_cr_response]
+            return [] # Default for other DOI batches
+        mock_cr_instance.works.side_effect = works_side_effect_merge
+
+        # Record already has some funding_entries from a primary parser
+        records_with_initial_funding = [
+            {
+                "title": "Paper 1",
+                "doi": "10.1000/doi1",
+                "funding_entries": [
+                    {
+                        "funder_name": "Primary Funder A",
+                        "grant_ids": ["P-A1"],
+                        "source_of_info": "parser_source"
+                    }
+                ]
+            }
+        ]
+
+        enriched = enrich_records_with_crossref_funding(records_with_initial_funding, mailto="test@example.com")
+
+        self.assertEqual(len(enriched[0]["funding_entries"]), 2, "Primary + CrossRef entry expected")
+
+        primary_entry_found = any(
+            e.get("funder_name") == "Primary Funder A" for e in enriched[0]["funding_entries"]
+        )
+        crossref_entry_found = any(
+            e.get("funder_name") == "CrossRef Funder X" and e.get("source_of_info") == "crossref_api"
+            for e in enriched[0]["funding_entries"]
+        )
+        self.assertTrue(primary_entry_found, "Primary funding entry should be preserved.")
+        self.assertTrue(crossref_entry_found, "CrossRef funding entry should be added.")
+        self.assertEqual(enriched[0]["funding_entries"][1].get("funder_crossref_id"), "10.13039/FXFUND")
+
+
+        # Test de-duplication/update: if CrossRef data is similar to an existing entry
+        record_with_dup_funding_potential = [
+            {
+                "title": "Paper Dup", "doi": "10.1000/doi_dup",
+                "funding_entries": [{ "funder_name": "National Science Foundation", "grant_ids": ["CR-X1"], "source_of_info": "parser"}] # Name will be normalized
+            }
+        ]
+
+        enriched_dup = enrich_records_with_crossref_funding(record_with_dup_funding_potential, mailto="test@example.com")
+
+        self.assertEqual(len(enriched_dup[0]["funding_entries"]), 1, "Duplicate entry should not be added; existing one should be updated.")
+        updated_entry = enriched_dup[0]["funding_entries"][0]
+        self.assertEqual(updated_entry.get("funder_name"), "National Science Foundation") # Normalized from "NSF" via _normalize_funder_name_enrich
+        self.assertIn("CR-X1", updated_entry.get("grant_ids", []))
+        self.assertEqual(updated_entry.get("funder_crossref_id"), "10.13039/100000001", "CrossRef ID should be added/updated.")
+        self.assertEqual(updated_entry.get("source_of_info"), "parser", "Original source_of_info should be kept if entry is updated.")
+
 
 if __name__ == '__main__':
     unittest.main()

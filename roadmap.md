@@ -34,9 +34,13 @@ To create a comprehensive, user-friendly, and extensible Python library for cond
         *   [_] Actual `pybibx` library testing, installation, and direct integration (environment permitting).
     *   [P] **Robust Funding Data:**
         *   [P] Enhance `FundingAnalyzer` with NLP (`spaCy`) for extracting from acknowledgements. - *Initial NLP version done*
-        *   [P] **CrossRef Integration for Funding Data Enrichment.** - *Initial enrichment service implemented.*
-        *   [ ] Enhance data source parsers for better structured funding data extraction. (Next key step for funding)
-    *   [ ] **Gender Analysis Module:**
+        *   [P] **CrossRef Integration for Funding Data Enrichment.**
+            *   [X] Initial enrichment service implemented.
+            *   [X] Refined to merge data into common `funding_entries` field.
+        *   [P] Enhance data source parsers for better structured funding data extraction. - *Initial pass completed; further refinement & testing needed.*
+    *   [X] **Gender Analysis Module:**
+        *   [P] Conceptual `GenderAnalyzer` with placeholder logic. - *Done*
+        *   [X] Integrate `gender-guesser` or similar library. - *Done with `gender-guesser`*
         *   [P] Conceptual `GenderAnalyzer` with placeholder logic. - *Done*
         *   [ ] Integrate `gender-guesser` or similar library.
     *   [ ] Refine common data format (e.g., for `cited_references`, structured funding).

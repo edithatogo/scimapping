@@ -18,7 +18,7 @@ Data retrieved from all sources is parsed into a common internal format, which i
 *   Source-specific IDs (e.g., `pubmed_id`, `wos_id`, `scopus_id`, `dimensions_id`, `openalex_id`).
 *   Source-specific citation counts (e.g., `times_cited_wos`, `times_cited_openalex`).
 *   `cited_references`: (Optional[List[str]]) A list of identifiers (e.g., DOIs, WoS IDs) for documents cited by the record. (Population by parsers is future work).
-*   `funding_entries`: (Optional[List[Dict[str, Any]]]) A list of dictionaries, each representing a funding source. Standard keys include `funder_name` (str), `grant_ids` (Optional[List[str]]), `funder_ror_id` (Optional[str]), `funder_crossref_id` (Optional[str]), `raw_funding_text` (Optional[str]), `source_of_info` (Optional[str]). This is the primary field populated by parsers with structured funding data.
+*   `funding_entries`: (Optional[List[Dict[str, Any]]]) A list of dictionaries, each representing a funding source. Standard keys include `funder_name` (str), `grant_ids` (Optional[List[str]]), `funder_ror_id` (Optional[str]), `funder_crossref_id` (Optional[str]), `raw_funding_text` (Optional[str]), `source_of_info` (Optional[str]). This field is populated by data source parsers and can be further augmented by enrichment services like CrossRef. The `source_of_info` sub-field (e.g., "wos_FU_field", "crossref_api") helps distinguish the origin of each entry.
 *   `acknowledgements_text` / `acknowledgements_text_fx` / `acknowledgements_text_scopus_funding`: (Optional[str]) Raw acknowledgement or funding text fields from the source, used by `FundingAnalyzer` for NLP if `funding_entries` is sparse.
 *   `raw_data`: (dict) The original data structure from the source library for more detailed inspection if needed.
 

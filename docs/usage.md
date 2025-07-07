@@ -174,19 +174,21 @@ if mapper.get_records():
 
 ### `enrich_with_crossref()` Method
 
-*   **Purpose**: Iterates through currently loaded records in the `ScienceMapper` instance. For each record with a DOI, it queries CrossRef to retrieve metadata and extracts funding information.
-*   **Added Field**: If funding data is found for a record, it's added to the record dictionary under the key `"crossref_funding"`.
-*   **Structure of `crossref_funding`**: This field will contain a list of dictionaries, where each dictionary represents a funder and their awards:
-    ```
-    [
+*   **Purpose**: Iterates through currently loaded records in the `ScienceMapper` instance. For each record with a DOI, it queries the CrossRef API to retrieve metadata and extracts funding information.
+*   **Data Integration**: Funding information retrieved from CrossRef is merged into the existing `funding_entries` list within each record. If a record does not have a `funding_entries` list, it will be created.
+    *   Each funding item from CrossRef is added as a new dictionary to the `funding_entries` list.
+    *   These new entries will have their `source_of_info` field set to `"crossref_api"`.
+    *   The structure of each added entry follows the standard `funding_entries` item format:
+        ```
         {
-            "name": "Funder Name A",
-            "funder_doi": "10.13039/xxxx" (Funder Registry ID, if available),
-            "awards": ["Grant ID1", "Grant ID2"] (List of award strings)
-        },
-        # ... more funders ...
-    ]
-    ```
+            "funder_name": "Funder Name from CrossRef",
+            "funder_crossref_id": "10.13039/xxxx" (Funder Registry ID, if available),
+            "grant_ids": ["Grant ID1", "Grant ID2"],
+            "source_of_info": "crossref_api"
+            // other fields like funder_ror_id might be absent if not in CrossRef data
+        }
+        ```
+    *   A basic de-duplication check is performed: if an identical funder name and set of grant IDs already exists in `funding_entries`, the CrossRef entry might update the existing one with a `funder_crossref_id` rather than adding a full duplicate.
 *   **Dependencies**: Requires the `habanero` library to be installed (`pip install habanero`).
 *   **API Etiquette**: It's highly recommended to provide a `mailto` email address when initializing `ScienceMapper` (via the `crossref_mailto` parameter). This email is used for CrossRef's polite API pool.
     ```python

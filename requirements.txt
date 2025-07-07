@@ -2,8 +2,8 @@
 pybibx
 requests # For general HTTP requests, potentially for APIs that don't have dedicated libraries
 pymed # For PubMed
+metaknowledge # For Web of Science, Scopus (if used directly)
 # Add other libraries as data sources are implemented, e.g.:
-# metaknowledge # For Web of Science, Scopus (if used directly)
 # scholarly # For Google Scholar (though not in initial list, good to keep in mind)
 # crossrefapi # For CrossRef
 # semanticscholar # For Semantic Scholar API

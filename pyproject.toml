@@ -35,6 +35,7 @@ dependencies = [
     "openalex>=0.1.0", # For OpenAlex API
     "pybibx", # Placeholder, actual version depends on availability
     "spacy>=3.0", # For NLP in FundingAnalyzer
+    "habanero>=1.2.0", # For CrossRef API client (example version, check latest)
     # Note: pybliometrics for Scopus is also a key dependency but has caused issues.
     # Add it here once those are resolvable or if a stable version is confirmed.
     # "pybliometrics>=4.0"

@@ -32,8 +32,11 @@ This document outlines known limitations, unimplemented features, and potential 
     *   **Action**: Update individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, etc.) to populate this field if the source data provides cited reference information.
 
 6.  **Funding Data - Structured Extraction & CrossRef**:
-    *   **Priority**: Enhance all data source parsers to robustly extract any available *structured* funding information (funder names, grant IDs, funding text) and map it to standardized fields in the common internal record format.
-    *   **CrossRef Integration**: Implement functionality to query the CrossRef API (using DOIs) to retrieve and integrate structured funding data (especially from Funder Registry) into records. This can be a separate enrichment step or part of data source processing.
+    *   **Priority**: Enhance all data source parsers to robustly extract any available *structured* funding information (funder names, grant IDs, funding text) and map it to standardized fields in the common internal record format. (Ongoing / To Do)
+    *   **CrossRef Integration**:
+        *   [P] Initial enrichment service `enrich_records_with_crossref_funding` implemented in `sciencemapping.utils.enrichment` using `habanero`. It fetches funding data by DOI and adds it to records.
+        *   [P] `ScienceMapper` updated with an `enrich_with_crossref()` method.
+        *   **Next Steps**: More robust error handling for diverse CrossRef responses, deeper integration with the common funding data model within records, and potentially making it a more central part of the data fetching/cleaning pipeline.
 
 7.  **Abstract Parsing (OpenAlex)**:
     *   The OpenAlex parser currently notes the presence of `abstract_inverted_index` but does not reconstruct the full abstract.

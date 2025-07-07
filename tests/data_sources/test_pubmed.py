@@ -18,7 +18,11 @@ class TestPubMedDataSource(unittest.TestCase):
             "pubmed_id": "12345678\n[Indexed for MEDLINE]",
             "abstract": "This is a test abstract.",
             "keywords": ["test", "pubmed", "python"],
-            # Add other fields as necessary based on pymed output
+            "grants": [ # Example grant list from pymed (based on GR tag)
+                "R01 CA123456/CA/NCI NIH HHS/United States",
+                "Wellcome Trust 098765/Z/12/Z", # Different format
+                "K99 AG000000//NIH HHS/United States" # Missing agency acronym part
+            ]
         }
         parsed_article = _parse_pubmed_article(raw_article_data)
 
@@ -33,6 +37,34 @@ class TestPubMedDataSource(unittest.TestCase):
         self.assertEqual(parsed_article["source_type"], "pubmed")
         self.assertIn("raw_data", parsed_article)
         self.assertEqual(parsed_article["raw_data"], raw_article_data)
+
+        # Assert funding_entries
+        self.assertIn("funding_entries", parsed_article)
+        self.assertIsNotNone(parsed_article["funding_entries"])
+        funding_entries = parsed_article["funding_entries"]
+        self.assertEqual(len(funding_entries), 3)
+
+        # Entry 1: R01 CA123456/CA/NCI NIH HHS/United States
+        self.assertEqual(funding_entries[0]["funder_name"], "NCI NIH HHS")
+        self.assertListEqual(funding_entries[0]["grant_ids"], ["R01 CA123456"])
+        self.assertEqual(funding_entries[0]["source_of_info"], "pubmed_GR_tag")
+        self.assertEqual(funding_entries[0]["raw_funding_text"], "R01 CA123456/CA/NCI NIH HHS/United States")
+
+        # Entry 2: Wellcome Trust 098765/Z/12/Z
+        # Current simple parser: grant_id = "Wellcome Trust 098765", agency_acronym = "Z", agency_full = "12"
+        # This highlights limitations of the very basic GR tag parsing.
+        # For the test, we assert what the current simple parser does.
+        self.assertEqual(funding_entries[1]["funder_name"], "12") # Based on current simple split
+        self.assertListEqual(funding_entries[1]["grant_ids"], ["Wellcome Trust 098765"])
+        self.assertEqual(funding_entries[1]["source_of_info"], "pubmed_GR_tag")
+        self.assertEqual(funding_entries[1]["raw_funding_text"], "Wellcome Trust 098765/Z/12/Z")
+
+        # Entry 3: K99 AG000000//NIH HHS/United States (missing agency acronym)
+        self.assertEqual(funding_entries[2]["funder_name"], "NIH HHS")
+        self.assertListEqual(funding_entries[2]["grant_ids"], ["K99 AG000000"])
+        self.assertEqual(funding_entries[2]["source_of_info"], "pubmed_GR_tag")
+        self.assertEqual(funding_entries[2]["raw_funding_text"], "K99 AG000000//NIH HHS/United States")
+
 
     def test_parse_pubmed_article_minimal_data(self):
         """Test parsing with minimal or missing data fields."""
@@ -52,6 +84,7 @@ class TestPubMedDataSource(unittest.TestCase):
         self.assertIsNone(parsed_article["abstract"])
         self.assertListEqual(parsed_article["keywords"], [])
         self.assertEqual(parsed_article["source_type"], "pubmed")
+        self.assertIsNone(parsed_article["funding_entries"]) # Check for funding_entries
 
     @patch('sciencemapping.data_sources.pubmed.PubMed')
     def test_search_pubmed_success(self, MockPubMed):

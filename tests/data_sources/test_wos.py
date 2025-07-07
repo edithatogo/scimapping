@@ -21,9 +21,11 @@ class TestWoSDataSource(unittest.TestCase):
             'DE': "keyword1; keyword2", # Author keywords
             'ID': "keyword plus A; keyword plus B", # Keywords Plus
             'DT': "Article",
-            'TC': "10" # Times Cited
+            'TC': "10", # Times Cited
+            'FU': "National Science Foundation (NSF) (Grant XYZ123, ABC-456); Wellcome Trust (WT0987)", # Funding Agency and Grant Number
+            'FX': "This work was supported by the NSF and Wellcome Trust. Additional thanks for internal grant." # Funding Text
         }
-        mock_mk_record = MagicMock() # Removed spec=metaknowledge.Record
+        mock_mk_record = MagicMock()
 
         # Configure the mock's get method and dict conversion
         def get_side_effect(key, default=None):
@@ -63,7 +65,34 @@ class TestWoSDataSource(unittest.TestCase):
         self.assertEqual(parsed["times_cited_wos"], "10")
         self.assertEqual(parsed["source_type"], "wos")
         self.assertIn("raw_data", parsed)
-        self.assertEqual(parsed["raw_data"]['TI'], "A Test Title for WoS") # Check if raw_data is snapshot
+        self.assertEqual(parsed["raw_data"]['TI'], "A Test Title for WoS")
+
+        # Assert acknowledgements_text_fx
+        self.assertEqual(parsed.get("acknowledgements_text_fx"), "This work was supported by the NSF and Wellcome Trust. Additional thanks for internal grant.")
+
+        # Assert funding_entries
+        self.assertIn("funding_entries", parsed)
+        self.assertIsNotNone(parsed["funding_entries"])
+        funding_entries = parsed["funding_entries"]
+        self.assertEqual(len(funding_entries), 2) # Two funders from FU string
+
+        # Entry 1: NSF
+        nsf_entry = next((fe for fe in funding_entries if "National Science Foundation" in fe.get("funder_name", "")), None)
+        self.assertIsNotNone(nsf_entry)
+        self.assertEqual(nsf_entry["funder_name"], "National Science Foundation (NSF)")
+        self.assertIn("XYZ123", nsf_entry["grant_ids"])
+        self.assertIn("ABC-456", nsf_entry["grant_ids"])
+        self.assertEqual(nsf_entry["source_of_info"], "wos_FU_field")
+        self.assertEqual(nsf_entry["raw_funding_text"], "National Science Foundation (NSF) (Grant XYZ123, ABC-456)")
+
+        # Entry 2: Wellcome Trust
+        wt_entry = next((fe for fe in funding_entries if "Wellcome Trust" in fe.get("funder_name", "")), None)
+        self.assertIsNotNone(wt_entry)
+        self.assertEqual(wt_entry["funder_name"], "Wellcome Trust")
+        self.assertIn("WT0987", wt_entry["grant_ids"])
+        self.assertEqual(wt_entry["source_of_info"], "wos_FU_field")
+        self.assertEqual(wt_entry["raw_funding_text"], "Wellcome Trust (WT0987)")
+
 
     def test_parse_wos_record_minimal(self):
         """Test parsing a WoS record with only essential information (e.g., title)."""
@@ -85,6 +114,8 @@ class TestWoSDataSource(unittest.TestCase):
         self.assertListEqual(parsed["authors"], [])
         self.assertIsNone(parsed["year"])
         self.assertListEqual(parsed["keywords"], [])
+        self.assertIsNone(parsed.get("funding_entries")) # Check funding_entries
+        self.assertIsNone(parsed.get("acknowledgements_text_fx")) # Check fx text
 
     def test_parse_wos_record_no_title(self):
         """Test that a record with no title returns None."""

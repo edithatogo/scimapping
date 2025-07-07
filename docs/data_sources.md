@@ -17,7 +17,9 @@ Data retrieved from all sources is parsed into a common internal format, which i
 *   `source_type`: (str) Identifier for the original data source (e.g., "pubmed", "wos").
 *   Source-specific IDs (e.g., `pubmed_id`, `wos_id`, `scopus_id`, `dimensions_id`, `openalex_id`).
 *   Source-specific citation counts (e.g., `times_cited_wos`, `times_cited_openalex`).
-*   `cited_references`: (Optional[List[str]]) A list of identifiers (e.g., DOIs, WoS IDs) for documents cited by the record. This field is intended for advanced citation analysis and network building; its population depends on the data source and parser capabilities.
+*   `cited_references`: (Optional[List[str]]) A list of identifiers (e.g., DOIs, WoS IDs) for documents cited by the record. (Population by parsers is future work).
+*   `funding_entries`: (Optional[List[Dict[str, Any]]]) A list of dictionaries, each representing a funding source. Standard keys include `funder_name` (str), `grant_ids` (Optional[List[str]]), `funder_ror_id` (Optional[str]), `funder_crossref_id` (Optional[str]), `raw_funding_text` (Optional[str]), `source_of_info` (Optional[str]). This is the primary field populated by parsers with structured funding data.
+*   `acknowledgements_text` / `acknowledgements_text_fx` / `acknowledgements_text_scopus_funding`: (Optional[str]) Raw acknowledgement or funding text fields from the source, used by `FundingAnalyzer` for NLP if `funding_entries` is sparse.
 *   `raw_data`: (dict) The original data structure from the source library for more detailed inspection if needed.
 
 The exact availability of these fields can vary by source and the specific record.
@@ -33,6 +35,7 @@ The exact availability of these fields can vary by source and the specific recor
 *   **Notes**:
     *   Makes live API calls to NCBI Entrez.
     *   The `sciencemapping.data_sources.pubmed` module handles parsing into the common format.
+    *   **Funding Data**: Parses MEDLINE `GR` tags (grant numbers/agencies) from `pymed` results into the `funding_entries` list. Each grant string is parsed to extract funder and grant ID where possible.
 
 ## 2. Web of Science (WoS)
 
@@ -45,6 +48,7 @@ The exact availability of these fields can vary by source and the specific recor
     *   This method parses local files exported from the Web of Science interface.
     *   The `sciencemapping.data_sources.wos` module uses `metaknowledge` for parsing and then maps fields to the common internal format.
     *   Ensure your WoS export includes fields like TI, AU, SO, PY, AB, DE, ID, DI, UT, TC for comprehensive parsing.
+    *   **Funding Data**: Parses `FU` (Funding Agency and Grant Number) field into `funding_entries`. Each entry in `FU` (if semicolon separated) is processed to identify funder and grant IDs. The raw `FX` (Funding Text) field is stored in `acknowledgements_text_fx` for potential NLP by `FundingAnalyzer`. If `FU` is empty but `FX` exists, `FX` content is added as a raw entry to `funding_entries`.
 
 ## 3. Scopus
 
@@ -57,6 +61,7 @@ The exact availability of these fields can vary by source and the specific recor
 *   **Notes**:
     *   Requires a Scopus API key from Elsevier. You need to configure `pybliometrics` with this key. See [pybliometrics documentation](https://pybliometrics.readthedocs.io/en/stable/configuration.html).
     *   The `sciencemapping.data_sources.scopus` module handles API interaction and parsing.
+    *   **Funding Data**: Primarily extracted via `fetch_scopus_abstract_details` (which uses `pybliometrics.scopus.AbstractRetrieval`). It processes the `funding` attribute (list of funder objects with agency, acronym, grant ID) from `AbstractRetrieval` into `funding_entries`. The `funding_text` from `AbstractRetrieval` is stored in `acknowledgements_text_scopus_funding`. Basic search results (`_parse_scopus_search_result`) initialize `funding_entries` to `None` but may store top-level `funding_text` if present.
     *   *Test Environment Status*: Unit tests for this module have encountered persistent issues related to `pybliometrics`'s behavior in the sandboxed test environment (specifically around error object types and configuration loading). The core logic is implemented, but full test validation is pending.
 
 ## 4. Dimensions
@@ -69,7 +74,8 @@ The exact availability of these fields can vary by source and the specific recor
     *   `dimensions_dsl_instance` (optional): Allows passing a pre-initialized and authenticated `dimcli.Dsl` object for more control.
 *   **Notes**:
     *   Requires access to the Dimensions API, which is a subscription service. Credentials must be configured for `dimcli` to work (e.g., via `dimcli login` or environment variables). See [dimcli documentation](https://dimcli.readthedocs.io/en/latest/gettingstarted.html#authentication).
-    *   The `sciencemapping.data_sources.dimensions` module handles API interaction. The structure of the returned data depends heavily on the `return` clause in your DSL query. The parser attempts to map common fields.
+    *   The `sciencemapping.data_sources.dimensions` module handles API interaction. The structure of the returned data depends heavily on the `return` clause in your DSL query.
+    *   **Funding Data**: The `_parse_dimensions_api_record` function looks for a `funders` list in the API response (each item a dict with funder details and potentially nested grant IDs) and/or a top-level `supporting_grant_ids` list. This information is parsed into the `funding_entries` field.
     *   *Test Environment Status*: Unit tests for this module could not be run due to `ModuleNotFoundError` for the main `sciencemapping.data_sources.dimensions` module within the test execution context. The code and tests are written but unverified.
 
 ## 5. OpenAlex
@@ -85,5 +91,6 @@ The exact availability of these fields can vary by source and the specific recor
 *   **Notes**:
     *   OpenAlex provides a free and open API.
     *   The `sciencemapping.data_sources.openalex` module uses the `openalex` library.
+    *   **Funding Data**: The `_parse_openalex_work` function processes the `funders` list in the API response. Each funder object can contain `display_name`, `ror` (ROR ID), OpenAlex Funder ID, CrossRef Funder DOI, and a nested `grants` list (with `award_id`). This is parsed into the `funding_entries` field.
     *   *Test Environment Status*: Unit tests for this module could not be run due to `ModuleNotFoundError` for the main `sciencemapping.data_sources.openalex` module within the test execution context. The code and tests are written but unverified.
     *   The parser handles common fields like `display_name` (for title), `authorships`, `host_venue`, `concepts` (as keywords), and `cited_by_count`. Abstract parsing from `abstract_inverted_index` is noted as a more complex task not fully implemented in the basic parser.

@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 import metaknowledge
+import re # Moved import re to the top
 
 def parse_wos_file(file_path: str, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
     """
@@ -140,6 +141,71 @@ def _parse_wos_record(record: metaknowledge.Record) -> Optional[Dict[str, Any]]:
         # If record is a mock with _test_get_raw_dict, use it, else use dict(record)
         "raw_data": record._test_get_raw_dict() if hasattr(record, '_test_get_raw_dict') and callable(record._test_get_raw_dict) else dict(record)
     }
+
+    # Funding Information from WoS FU (Funding Agency and Grant Number) and FX (Funding Text)
+    funding_entries: List[Dict[str, Any]] = []
+
+    # Process FU first as it's more structured
+    fu_data = record.get('FU') # This might be a string or a list from metaknowledge
+    if isinstance(fu_data, str) and fu_data:
+        fu_list = fu_data.split(';') # FU can contain multiple funding entries separated by semicolon
+    elif isinstance(fu_data, list):
+        fu_list = fu_data # If metaknowledge already parsed it into a list of strings
+    else:
+        fu_list = []
+
+    if fu_list:
+        for fu_item_str in fu_list:
+            fu_item_str = str(fu_item_str).strip() # Ensure it's a string and stripped
+            if not fu_item_str: continue
+
+            entry: Dict[str, Any] = {"source_of_info": "wos_FU_field", "raw_funding_text": fu_item_str}
+            grant_ids_for_entry = []
+
+            # Try to parse "Agency Name (Grant1, Grant2)" format
+            # Regex to capture agency and grant numbers. Grant numbers can be tricky.
+            # This pattern tries to capture text before parentheses as agency, and content within as grants.
+            match = re.match(r'(.+?)\s*\((.+)\)', fu_item_str)
+            funder_name_str = ""
+            if match:
+                funder_name_str = match.group(1).strip()
+                grants_str = match.group(2)
+                # Split grants by comma, common conjunctions like 'and', or semicolon if nested
+                # This simplistic split by comma might need refinement for complex grant strings.
+                grant_ids_for_entry.extend([g.strip() for g in re.split(r'[;,]\s*|and\s+', grants_str) if g.strip()])
+            else: # Assume the whole part is the funder name if no parentheses with grants
+                funder_name_str = fu_item_str
+
+            if funder_name_str:
+                entry["funder_name"] = funder_name_str
+            if grant_ids_for_entry:
+                entry["grant_ids"] = grant_ids_for_entry
+
+            if funder_name_str or grant_ids_for_entry:
+                 funding_entries.append(entry)
+            elif fu_item_str: # If nothing specific parsed but FU string exists
+                funding_entries.append({"raw_funding_text": fu_item_str, "source_of_info": "wos_FU_field_unparsed"})
+
+
+    # Store FX (Funding Text) if available. This is typically free text acknowledgements.
+    # We will store this in a dedicated field, e.g., 'acknowledgements_text_fx'
+    # The FundingAnalyzer can then choose to process it.
+    fx_data = record.get('FX')
+    if isinstance(fx_data, str) and fx_data:
+        parsed['acknowledgements_text_fx'] = fx_data # Add FX directly to parsed output
+        # If no structured FU data was found, FX might be the only clue.
+        if not funding_entries:
+            funding_entries.append({
+                "raw_funding_text": fx_data,
+                "source_of_info": "wos_FX_field_as_primary"
+            })
+
+
+    if funding_entries:
+        parsed["funding_entries"] = funding_entries
+    else:
+        parsed["funding_entries"] = None
+
     return parsed
 
 

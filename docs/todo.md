@@ -29,14 +29,16 @@ This document outlines known limitations, unimplemented features, and potential 
 
 5.  **Common Data Format - `cited_references`**:
     *   Conceptually added `cited_references: Optional[List[str]]` to the common internal data format to support advanced citation analyses.
-    *   **Action**: Update individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, etc.) to populate this field if the source data provides cited reference information.
+    *   **Action**: Update individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, etc.) to populate this field if the source data provides cited reference information. (To Do)
 
 6.  **Funding Data - Structured Extraction & CrossRef**:
-    *   **Priority**: Enhance all data source parsers to robustly extract any available *structured* funding information (funder names, grant IDs, funding text) and map it to standardized fields in the common internal record format. (Ongoing / To Do)
+    *   **Data Source Parsers**: [P] Initial updates made to all five data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, `dimensions.py`, `openalex.py`) to extract available structured/semi-structured funding information into a new `funding_entries: List[Dict]` field in the common record format. Unit tests for PubMed and WoS parsers updated and passing; tests for other parsers conceptually updated but blocked by environment issues.
+        *   **Next Steps**: Further refine parsers for robustness and completeness of funding extraction. Test all parser updates thoroughly once environment issues are resolved.
     *   **CrossRef Integration**:
-        *   [P] Initial enrichment service `enrich_records_with_crossref_funding` implemented in `sciencemapping.utils.enrichment` using `habanero`. It fetches funding data by DOI and adds it to records.
-        *   [P] `ScienceMapper` updated with an `enrich_with_crossref()` method.
-        *   **Next Steps**: More robust error handling for diverse CrossRef responses, deeper integration with the common funding data model within records, and potentially making it a more central part of the data fetching/cleaning pipeline.
+        *   [X] Initial enrichment service `enrich_records_with_crossref_funding` implemented.
+        *   [X] `ScienceMapper` updated with an `enrich_with_crossref()` method.
+        *   **Next Steps**: More robust error handling for CrossRef, deeper integration with the `funding_entries` model.
+    *   **FundingAnalyzer**: [P] Updated to prioritize consuming `funding_entries` from parsers, using NLP on acknowledgements as a fallback. Tests updated.
 
 7.  **Abstract Parsing (OpenAlex)**:
     *   The OpenAlex parser currently notes the presence of `abstract_inverted_index` but does not reconstruct the full abstract.

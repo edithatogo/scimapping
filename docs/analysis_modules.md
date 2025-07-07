@@ -79,19 +79,19 @@ The `sciencemapping` library includes several modules for performing bibliometri
 *   **Module**: `sciencemapping.analysis.funding_analyzer.FundingAnalyzer`
 *   **Purpose**: Provides tools for extracting and analyzing research funding information from publication records.
 *   **Strategy for Funding Data**:
-    1.  **Primary: Structured Data from Sources**: The most reliable approach is to utilize structured funding information directly provided by the data sources. Individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, `dimensions.py`, `openalex.py`) should be enhanced to extract fields like funder names, grant IDs, and funding agency acronyms, populating standardized fields in the common internal record format (e.g., a dedicated `structured_funding` list of dicts).
-    2.  **Enrichment via CrossRef**: CrossRef is a valuable source for funding metadata, often including Funder Registry IDs. Future work should include a mechanism to query CrossRef (using DOIs) to augment records with this structured funding information.
-    3.  **Secondary: NLP on Acknowledgements**: When structured data is sparse or unavailable, `FundingAnalyzer` can process free-text "acknowledgements" sections (if present in the records) using NLP techniques.
+    1.  **Primary: Parsed Structured Data**: The `FundingAnalyzer` now primarily consumes the `funding_entries` field from records. This field is expected to be populated by the individual data source parsers (`pubmed.py`, `wos.py`, etc.), which are responsible for extracting structured funding information (funder names, grant IDs, funder identifiers like ROR/CrossRef) from the raw source data.
+    2.  **Enrichment via CrossRef**: The library also includes a utility (`sciencemapping.utils.enrichment.enrich_records_with_crossref_funding`) to augment records with funding data from CrossRef using DOIs. This can supplement the information from primary sources.
+    3.  **Secondary: NLP on Acknowledgements**: If the `funding_entries` field is sparse or missing, and an acknowledgements text field (e.g., `acknowledgements_text`, `acknowledgements_text_fx`) is available, the `FundingAnalyzer` can use `spaCy` (if available) for NLP-based extraction of potential funders (as ORG entities) and regex for grant ID patterns.
 *   **Current Implementation (`FundingAnalyzer`)**:
-    *   **NLP Capability (Conditional)**: Uses `spaCy` (if available and `en_core_web_sm` model is downloaded) for Named Entity Recognition (NER) to identify potential funding organizations (`ORG` entities) from acknowledgement text.
-    *   **Regex for Grant IDs**: Employs regular expressions to find common grant ID patterns within acknowledgement text or other free-text funding fields.
-    *   **Prioritization**: The `extract_funding_data()` method attempts to use any pre-existing structured funding fields (e.g., `funding_details` from Scopus, `funders` list from OpenAlex, WoS `FU` field) first. It then applies NLP and regex to `acknowledgements` or `FX` (WoS Funding Text) fields as a supplementary step.
-    *   **Normalization**: Includes basic funder name normalization (e.g., "NSF" to "National Science Foundation").
+    *   **Input**: Expects records to potentially have a `funding_entries: List[Dict[str, Any]]` field (as defined in `docs/data_sources.md`).
+    *   **NLP Capability (Conditional)**: Uses `spaCy` for NER on various forms of acknowledgement text if `funding_entries` is not sufficiently populated.
+    *   **Regex for Grant IDs**: Applied during NLP on acknowledgements.
+    *   **Prioritization**: The `extract_funding_data()` method now first processes `funding_entries`. If this is empty/missing, it then attempts NLP on available acknowledgement texts.
+    *   **Normalization**: Includes basic funder name normalization.
 *   **Key Methods**:
-    *   `extract_funding_data()`: Processes records and returns a list, where each item contains the original record's index/identifier and extracted `funders` (List[str]) and `grant_ids` (List[str]). It also indicates the primary `source_of_funding_info` (e.g., "structured", "nlp_acknowledgements").
-    *   `get_funding_summary_stats()`: Calculates statistics like the number of records with funding information and lists top funders (normalized).
-*   **Future Enhancements (for `FundingAnalyzer` and data parsers)**:
-    *   Improve data source parsers to robustly extract and standardize structured funding information.
-    *   Implement CrossRef integration for funding data enrichment.
-    *   Enhance NLP capabilities (e.g., more sophisticated entity disambiguation for funders, better grant ID patterns, relation extraction between funders and grants).
-    *   Develop a more comprehensive internal model for storing detailed structured funding data (e.g., funder IDs, grant amounts if available).
+    *   `extract_funding_data()`: Returns a list, where each item links to an original record and contains extracted/normalized `funders` (List[str]) and `grant_ids` (List[str]), along with `source_of_funding_info` indicating if data came from "structured_from_parser" or "nlp_acknowledgements".
+    *   `get_funding_summary_stats()`: Calculates statistics based on the output of `extract_funding_data`.
+*   **Future Enhancements**:
+    *   Continued refinement of data source parsers to maximize the quality of structured `funding_entries`.
+    *   Deeper integration of CrossRef enrichment results into the `funding_entries` structure or a similar standardized field.
+    *   More sophisticated NLP for acknowledgements (entity disambiguation, relation extraction).

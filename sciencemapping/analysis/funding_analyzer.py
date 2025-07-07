@@ -78,89 +78,70 @@ class FundingAnalyzer:
         extracted_funding_info: List[Dict[str, Any]] = []
 
         for i, record in enumerate(self.records):
-            record_funders_structured: Set[str] = set()
-            record_grants_structured: Set[str] = set()
+            processed_record_funders: Set[str] = set()
+            processed_record_grants: Set[str] = set()
+            source_info_type = "unknown" # To track origin
 
-            # 1. Process structured funding information first
-            # Example: Scopus 'funding_details' (agency, text) or OpenAlex 'funders' list
-            if "funding_details" in record and isinstance(record["funding_details"], dict):
-                agency = record["funding_details"].get("agency")
-                if agency and isinstance(agency, str):
-                    record_funders_structured.add(self._normalize_funder_name(agency))
-
-                funding_text_field = record["funding_details"].get("text")
-                if funding_text_field and isinstance(funding_text_field, str):
-                    for pattern in GRANT_ID_PATTERNS:
-                        for match in pattern.finditer(funding_text_field):
-                            grant_id = match.group(1) if len(match.groups()) > 0 else match.group(0)
-                            record_grants_structured.add(grant_id.strip())
-
-            # OpenAlex 'funders' list (example structure)
-            if "funders" in record and isinstance(record["funders"], list):
-                for funder_entry in record["funders"]:
-                    if isinstance(funder_entry, dict):
-                        funder_name = funder_entry.get("display_name") or funder_entry.get("name")
+            # 1. Prioritize the standardized `funding_entries` field populated by parsers
+            if "funding_entries" in record and isinstance(record["funding_entries"], list):
+                for entry in record["funding_entries"]:
+                    if isinstance(entry, dict):
+                        funder_name = entry.get("funder_name")
                         if funder_name and isinstance(funder_name, str):
-                            record_funders_structured.add(self._normalize_funder_name(funder_name))
-                        # Grant IDs might also be here in some OpenAlex structures
-                        # e.g., funder_entry.get("grants") or similar
+                            processed_record_funders.add(self._normalize_funder_name(funder_name))
 
-            # WoS 'FU' field (Funding Agency and Grant Number)
-            if "FU" in record and isinstance(record["FU"], str):
-                agencies_grants_str = record["FU"]
-                # FU often "Agency Name (Grant1, Grant2); Other Agency (Grant3)"
-                for part in agencies_grants_str.split(';'):
-                    match = re.match(r'(.+?)\s*\((.+)\)', part.strip()) # Agency (Grants)
-                    if match:
-                        agency_name = self._normalize_funder_name(match.group(1))
-                        record_funders_structured.add(agency_name)
-                        for grant in match.group(2).split(','):
-                            record_grants_structured.add(grant.strip())
-                    elif part.strip(): # Just agency name
-                        record_funders_structured.add(self._normalize_funder_name(part.strip()))
+                        grant_ids = entry.get("grant_ids")
+                        if isinstance(grant_ids, list):
+                            for gid in grant_ids:
+                                if isinstance(gid, str):
+                                    processed_record_grants.add(gid.strip())
+                        # We can also store entry["source_of_info"] if needed for more granular tracking
+                if processed_record_funders or processed_record_grants:
+                    source_info_type = "structured_from_parser" # Or derive from entry["source_of_info"]
 
-            # --- NLP on Acknowledgements (if available and no structured info found, or to supplement) ---
-            record_funders_nlp: Set[str] = set()
-            record_grants_nlp: Set[str] = set()
-            acknowledgements_text = record.get("acknowledgements") or record.get("FX") # WoS FX is Funding Text
+            # 2. Fallback or Supplement with NLP on acknowledgements text
+            # Only run NLP if spaCy is available AND (no structured funding found OR we want to supplement)
+            # For now, let's run if no structured info was found from funding_entries, or if specific ack text exists
 
-            # Only run NLP if spaCy is loaded and text is present
-            if self.spacy_available and self.nlp and acknowledgements_text and isinstance(acknowledgements_text, str):
+            acknowledgements_text = record.get("acknowledgements_text") or \
+                                    record.get("acknowledgements_text_fx") or \
+                                    record.get("acknowledgements_text_scopus_funding") or \
+                                    record.get("acknowledgements") # General fallback
+
+            run_nlp = self.spacy_available and self.nlp and \
+                        acknowledgements_text and isinstance(acknowledgements_text, str) and \
+                        not (processed_record_funders or processed_record_grants) # Basic: run NLP if no structured info yet
+
+            if run_nlp:
                 # print(f"FundingAnalyzer: Processing acknowledgements for record {i} with spaCy.") # Debug
-                doc = self.nlp(acknowledgements_text)
+                doc = self.nlp(acknowledgements_text) # type: ignore # self.nlp is checked by self.spacy_available
+                nlp_funders: Set[str] = set()
+                nlp_grants: Set[str] = set()
+
                 for ent in doc.ents:
-                    if ent.label_ == "ORG": # Organization
-                        # Further filtering might be needed to distinguish funders from e.g. universities
-                        # For now, add all ORGs and normalize.
-                        record_funders_nlp.add(self._normalize_funder_name(ent.text))
+                    if ent.label_ == "ORG":
+                        nlp_funders.add(self._normalize_funder_name(ent.text))
 
                 for pattern in GRANT_ID_PATTERNS:
-                    for match in pattern.finditer(acknowledgements_text):
+                    for match in pattern.finditer(acknowledgements_text): # type: ignore
                         grant_id = match.group(1) if len(match.groups()) > 0 else match.group(0)
-                        record_grants_nlp.add(grant_id.strip())
+                        nlp_grants.add(grant_id.strip())
 
-            # Combine structured and NLP results (prefer structured, add NLP if new)
-            final_funders = record_funders_structured.copy()
-            for f_nlp in record_funders_nlp:
-                # Add NLP funder only if it (or its normalized form) isn't already covered by structured data.
-                # This simple check might not be perfect if structured name is an acronym and NLP got full name.
-                # A more robust check would involve comparing normalized versions.
-                if f_nlp not in final_funders and self._normalize_funder_name(f_nlp) not in final_funders : # Basic check
-                    final_funders.add(f_nlp) # Add the NLP version (could be more specific)
+                if nlp_funders or nlp_grants:
+                    processed_record_funders.update(nlp_funders) # Merge NLP results
+                    processed_record_grants.update(nlp_grants)
+                    source_info_type = "nlp_acknowledgements" if source_info_type == "unknown" else f"{source_info_type}_nlp_supplemented"
 
-            final_grants = record_grants_structured.union(record_grants_nlp)
-
-            if final_funders or final_grants:
+            if processed_record_funders or processed_record_grants:
                 extracted_funding_info.append({
                     "record_index": i,
                     "title": record.get("title", "N/A"),
                     "doi": record.get("doi"),
-                    "funders": sorted(list(final_funders)),
-                    "grant_ids": sorted(list(final_grants)),
-                    "source_of_funding_info": "structured" if record_funders_structured or record_grants_structured else "nlp_acknowledgements"
+                    "funders": sorted(list(processed_record_funders)),
+                    "grant_ids": sorted(list(processed_record_grants)),
+                    "source_of_funding_info": source_info_type
                 })
 
-        # print(f"FundingAnalyzer: Extracted funding information for {len(extracted_funding_info)} records.") # Debug
         return extracted_funding_info
 
     def get_funding_summary_stats(self) -> Dict[str, Any]:

@@ -114,12 +114,49 @@ def fetch_scopus_abstract_details(eid: str, api_key: Optional[str] = None) -> Op
             "index_keywords": getattr(ab_ret, 'idxterms', None),
             "references_count": getattr(ab_ret, 'refcount', None),
             "references": [ref.id for ref in getattr(ab_ret, 'references', []) if ref and hasattr(ref, 'id') and ref.id],
-            "funding_details": {
-                "agency": getattr(ab_ret, 'funding_agency', None),
-                "text": getattr(ab_ret, 'funding_text', None)
-            } if getattr(ab_ret, 'funding_agency', None) or getattr(ab_ret, 'funding_text', None) else None,
+            # "funding_details" was a previous simpler structure, replacing with funding_entries
+            # "funding_details": {
+            #     "agency": getattr(ab_ret, 'funding_agency', None),
+            #     "text": getattr(ab_ret, 'funding_text', None)
+            # } if getattr(ab_ret, 'funding_agency', None) or getattr(ab_ret, 'funding_text', None) else None,
             "raw_abstract_retrieval_dict": ab_ret.to_dict() if hasattr(ab_ret, 'to_dict') else None
         }
+
+        # Process structured funding information from ab_ret.funding
+        # ab_ret.funding is a list of namedtuples: Funding(agency, agency_acronym, grant_id, country)
+        funding_entries: List[Dict[str, Any]] = []
+        if hasattr(ab_ret, 'funding') and ab_ret.funding:
+            for fund_info in ab_ret.funding:
+                entry: Dict[str, Any] = {"source_of_info": "scopus_api_abstract_retrieval"}
+                funder_name = getattr(fund_info, 'agency', None)
+                # Prefer full agency name, fallback to acronym if name is too generic like "Funding Organization"
+                if funder_name and funder_name.lower() != "funding organization":
+                    entry["funder_name"] = funder_name
+                elif hasattr(fund_info, 'agency_acronym') and getattr(fund_info, 'agency_acronym'):
+                    entry["funder_name"] = getattr(fund_info, 'agency_acronym')
+
+                grant_id = getattr(fund_info, 'grant_id', None)
+                if grant_id:
+                    entry["grant_ids"] = [grant_id] # Store as list
+
+                # Store raw text from funding_text if available and if this entry seems minimal
+                # This part is more heuristic as funding_text is a single string for all funding.
+                if hasattr(ab_ret, 'funding_text') and ab_ret.funding_text and not entry.get("grant_ids"):
+                     entry["raw_funding_text"] = ab_ret.funding_text # Associate with first funder if multiple?
+                                                                    # Or better, store funding_text separately.
+
+                if entry.get("funder_name") or entry.get("grant_ids"):
+                    funding_entries.append(entry)
+
+        if hasattr(ab_ret, 'funding_text') and ab_ret.funding_text:
+            details['acknowledgements_text_scopus_funding'] = ab_ret.funding_text
+
+
+        if funding_entries:
+            details["funding_entries"] = funding_entries
+        else:
+            details["funding_entries"] = None
+
         return details
     except FileNotFoundError:
         print("Scopus configuration file or API key not found by pybliometrics. Please initialize pybliometrics (e.g., with an API key or by running pybliometrics.scopus.utils.create_config()).")

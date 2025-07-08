@@ -11,7 +11,11 @@ class TestOpenAlexDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.openalex.openalex.Works') # Patch where it's used
     def test_search_openalex_works_success(self, MockWorks):
-        """Test successful search using OpenAlex API and parsing."""
+        """
+        Test that `search_openalex_works` performs a successful OpenAlex API search and correctly parses the returned results.
+        
+        Simulates the OpenAlex API using mocks to verify that the search, filter, and pagination methods are called with the expected arguments. Asserts that the parsed results contain the correct titles, OpenAlex IDs, and author names extracted from the mocked API response.
+        """
         mock_works_query_instance = MockWorks.return_value # This is what Works() returns
 
         # Mock the fluent interface (.search().filter().paginate())
@@ -64,7 +68,9 @@ class TestOpenAlexDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.openalex.openalex.Works')
     def test_search_openalex_api_error(self, MockWorks):
-        """Test search_openalex_works when the API query itself raises an error."""
+        """
+        Test that search_openalex_works returns an empty list and logs an error when the OpenAlex API raises an exception.
+        """
         mock_works_query_instance = MockWorks.return_value
         mock_works_query_instance.search.return_value = mock_works_query_instance
         mock_works_query_instance.filter.return_value = mock_works_query_instance
@@ -77,7 +83,9 @@ class TestOpenAlexDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.openalex.openalex.Works')
     def test_search_openalex_no_results(self, MockWorks):
-        """Test search_openalex_works when the query returns no results."""
+        """
+        Test that search_openalex_works returns an empty list when the OpenAlex API yields no results.
+        """
         mock_works_query_instance = MockWorks.return_value
         mock_works_query_instance.search.return_value = mock_works_query_instance
         mock_works_query_instance.filter.return_value = mock_works_query_instance
@@ -87,7 +95,11 @@ class TestOpenAlexDataSource(unittest.TestCase):
         self.assertEqual(results, [])
 
     def test_parse_openalex_work_full(self):
-        """Test parsing of a single OpenAlex work record with various fields."""
+        """
+        Test that a comprehensive OpenAlex work record is correctly parsed into the expected normalized dictionary fields.
+        
+        Verifies extraction of title, authors, journal, year, DOI, OpenAlex ID, keywords, document type, citation count, source type, and raw data. Confirms that the abstract is None when not implemented.
+        """
         item_json = {
             "id": "https://openalex.org/W987",
             "display_name": "Comprehensive OpenAlex Record",
@@ -124,7 +136,9 @@ class TestOpenAlexDataSource(unittest.TestCase):
         self.assertEqual(parsed["raw_data"], item_json)
 
     def test_parse_openalex_work_minimal_title_only(self):
-        """Test parsing with minimal data (only display_name as title)."""
+        """
+        Tests that parsing a minimal OpenAlex work record with only an ID and display name correctly extracts the title and OpenAlex ID, and returns an empty authors list.
+        """
         item_json = {"id": "W-Min", "display_name": "Minimal OpenAlex Title"} # ID without full URL
         parsed = _parse_openalex_work(item_json)
         self.assertIsNotNone(parsed)
@@ -145,7 +159,11 @@ class TestOpenAlexDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.openalex.openalex.config')
     def test_search_openalex_with_email(self, mock_oa_config):
-        """Test that providing an email sets it in openalex.config."""
+        """
+        Verify that providing a user email to `search_openalex_works` sets the email in the OpenAlex client configuration.
+        
+        This test mocks the OpenAlex API and configuration to ensure that the `user_email` parameter is correctly assigned to `openalex.config.email` during the search operation.
+        """
         # Store original email if any, to restore it. This is tricky with module-level config.
         # For a unit test, we assume we can set it and it's used.
         # The actual check of whether openalex lib *uses* it is harder to unit test.

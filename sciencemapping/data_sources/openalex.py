@@ -23,7 +23,16 @@ def search_openalex_works(
     user_email: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    Searches OpenAlex for works matching a search query and/or filter criteria.
+    Search for scholarly works in OpenAlex using an optional text query and filter criteria.
+    
+    Parameters:
+        search_query (str, optional): Text string to search for in works.
+        filter_criteria (dict, optional): Dictionary of filter parameters to apply (e.g., publication year, author ID).
+        max_results (int): Maximum number of results to retrieve.
+        user_email (str, optional): Email address to set in the OpenAlex client configuration for API requests.
+    
+    Returns:
+        List[Dict[str, Any]]: A list of parsed work dictionaries containing metadata for each retrieved work. Returns an empty list if the OpenAlex library is unavailable or no results are found.
     """
     if not OPENALEX_AVAILABLE or not openalex_module:
         warnings.warn("OpenAlex: 'openalex' library not available. Skipping search.", RuntimeWarning)
@@ -83,7 +92,13 @@ def search_openalex_works(
 
 def _parse_openalex_work(item_json: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Parses a single work JSON from OpenAlex API into our common internal format.
+    Parse a single OpenAlex work JSON object into a standardized internal dictionary format.
+    
+    Parameters:
+        item_json (dict): Raw JSON data for a single work from the OpenAlex API.
+    
+    Returns:
+        dict or None: A dictionary containing normalized metadata fields (title, authors, journal, year, DOI, OpenAlex ID, abstract presence, keywords, document type, citation count, cited references, funding entries, and raw data), or None if the input is invalid or missing a title.
     """
     if not item_json or not isinstance(item_json, dict):
         return None

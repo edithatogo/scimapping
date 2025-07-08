@@ -7,7 +7,11 @@ import metaknowledge # For creating mock Record objects if needed
 class TestWoSDataSource(unittest.TestCase):
 
     def test_parse_wos_record_full(self):
-        """Test parsing a fairly complete WoS record from metaknowledge.Record."""
+        """
+        Test parsing a comprehensive Web of Science (WoS) record using a mocked metaknowledge.Record object.
+        
+        This test verifies that all expected fields are correctly extracted and transformed by `_parse_wos_record`, including title, authors, journal, year, DOI, WoS ID (with prefix removal), abstract, keywords (merged and deduplicated from DE and ID fields), document type, times cited, source type, raw data preservation, acknowledgements text (from FX), funding entries (parsed from FU), and cited references (DOIs extracted and cleaned). It asserts the correctness and completeness of the parsed output for a fully populated WoS record.
+        """
         # Create a mock metaknowledge.Record object
         # metaknowledge.Record behaves like a dict with special properties
         mock_mk_record_dict = {
@@ -35,6 +39,16 @@ class TestWoSDataSource(unittest.TestCase):
 
         # Configure the mock's get method and dict conversion
         def get_side_effect(key, default=None):
+            """
+            Retrieve a value from the mock record dictionary for the given key, returning a default if the key is not present.
+            
+            Parameters:
+                key: The key to look up in the mock record dictionary.
+                default: The value to return if the key is not found.
+            
+            Returns:
+                The value associated with the key, or the default if the key is missing.
+            """
             return mock_mk_record_dict.get(key, default)
 
         mock_mk_record.get.side_effect = get_side_effect
@@ -111,11 +125,25 @@ class TestWoSDataSource(unittest.TestCase):
 
 
     def test_parse_wos_record_minimal(self):
-        """Test parsing a WoS record with only essential information (e.g., title)."""
+        """
+        Test that parsing a minimal WoS record with only a title field returns the correct defaults for all other fields.
+        
+        Verifies that missing fields such as authors, year, keywords, funding entries, acknowledgements, and cited references are handled gracefully and set to their expected default values.
+        """
         mock_mk_record_dict = {'TI': "Minimal WoS Title"}
 
         mock_mk_record = MagicMock() # spec=metaknowledge.Record removed
         def get_side_effect(key, default=None):
+            """
+            Retrieve a value from the mock record dictionary for the given key, returning a default if the key is not present.
+            
+            Parameters:
+                key: The key to look up in the mock record dictionary.
+                default: The value to return if the key is not found.
+            
+            Returns:
+                The value associated with the key, or the default if the key is missing.
+            """
             return mock_mk_record_dict.get(key, default)
         mock_mk_record.get.side_effect = get_side_effect
         mock_mk_record.__iter__ = lambda s: iter(mock_mk_record_dict)
@@ -140,6 +168,16 @@ class TestWoSDataSource(unittest.TestCase):
 
         mock_mk_record = MagicMock() # spec=metaknowledge.Record removed
         def get_side_effect(key, default=None):
+            """
+            Retrieve a value from the mock record dictionary for the given key, returning a default if the key is not present.
+            
+            Parameters:
+                key: The key to look up in the mock record dictionary.
+                default: The value to return if the key is not found.
+            
+            Returns:
+                The value associated with the key, or the default if the key is missing.
+            """
             return mock_mk_record_dict.get(key, default)
         mock_mk_record.get.side_effect = get_side_effect
         mock_mk_record.__iter__ = lambda s: iter(mock_mk_record_dict)
@@ -151,7 +189,9 @@ class TestWoSDataSource(unittest.TestCase):
         self.assertIsNone(parsed)
 
     def test_parse_wos_record_keyword_handling(self):
-        """Test keyword parsing, including merging DE and ID, and deduplication."""
+        """
+        Tests that keyword parsing from DE and ID fields merges and deduplicates keywords case-insensitively, preserving unique entries.
+        """
         mock_mk_record_dict = {
             'TI': "Keyword Test",
             'DE': "Keyword A; Keyword B; keyword c",
@@ -160,6 +200,16 @@ class TestWoSDataSource(unittest.TestCase):
 
         mock_mk_record = MagicMock() # spec=metaknowledge.Record removed
         def get_side_effect(key, default=None):
+            """
+            Retrieve a value from the mock record dictionary for the given key, returning a default if the key is not present.
+            
+            Parameters:
+                key: The key to look up in the mock record dictionary.
+                default: The value to return if the key is not found.
+            
+            Returns:
+                The value associated with the key, or the default if the key is missing.
+            """
             return mock_mk_record_dict.get(key, default)
         mock_mk_record.get.side_effect = get_side_effect
         mock_mk_record.__iter__ = lambda s: iter(mock_mk_record_dict)
@@ -178,7 +228,11 @@ class TestWoSDataSource(unittest.TestCase):
 
     @patch('metaknowledge.RecordCollection')
     def test_parse_wos_file_success(self, MockRecordCollection):
-        """Test successful parsing of a WoS file via parse_wos_file."""
+        """
+        Test that parse_wos_file successfully parses multiple WoS records from a file.
+        
+        Simulates reading two records from a mocked RecordCollection and verifies that the parsed output contains the correct titles and WoS IDs for each record.
+        """
         # Create mock metaknowledge.Record objects to be returned by the mock RecordCollection
         record_dict1 = {'TI': "Title 1", 'AU': ["Auth A"], 'PY': "2020", 'UT': "WOS:001", 'DI': None, 'AB': None, 'DE': None, 'ID': None, 'DT': None, 'TC': None, 'SO': None}
         record_dict2 = {'TI': "Title 2", 'AU': ["Auth B"], 'PY': "2021", 'UT': "WOS:002", 'DI': None, 'AB': None, 'DE': None, 'ID': None, 'DT': None, 'TC': None, 'SO': None}
@@ -217,7 +271,11 @@ class TestWoSDataSource(unittest.TestCase):
     @patch('builtins.open', new_callable=mock_open, read_data="file content that metaknowledge would parse")
     @patch('metaknowledge.RecordCollection', side_effect=FileNotFoundError("File not found"))
     def test_parse_wos_file_not_found(self, MockRecordCollection, mock_file_open):
-        """Test parse_wos_file when the file is not found (metaknowledge raises FileNotFoundError)."""
+        """
+        Test that parse_wos_file returns an empty list and prints an error message when the input file is not found.
+        
+        This test simulates a FileNotFoundError raised by metaknowledge.RecordCollection and verifies that parse_wos_file handles the exception gracefully.
+        """
         # Even though we mock metaknowledge.RecordCollection to raise FileNotFoundError,
         # the parse_wos_file function itself has a try-except for FileNotFoundError.
         # So, the function should catch it and print a message.

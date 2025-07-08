@@ -13,17 +13,16 @@ def search_pubmed(
     email: Optional[str] = DEFAULT_TOOL_EMAIL,
 ) -> List[Dict[str, Any]]:
     """
-    Searches PubMed for articles matching the query.
-
-    Args:
-        query: The search query string (e.g., "cancer research").
-        max_results: The maximum number of articles to retrieve.
-        tool: The name of the tool making the request (as per NCBI guidelines).
-        email: The email address of the user/tool maintainer (as per NCBI guidelines).
-
+    Searches PubMed for articles matching a given query and returns them in a standardized internal format.
+    
+    Parameters:
+        query (str): The search query string.
+        max_results (int, optional): Maximum number of articles to retrieve. Defaults to 100.
+        tool (str, optional): Tool name for NCBI API identification. Defaults to "ScienceMappingLibrary".
+        email (Optional[str], optional): Email address for NCBI API compliance. Uses a default placeholder if not provided.
+    
     Returns:
-        A list of dictionaries, where each dictionary represents an article
-        and is parsed into a common internal format.
+        List[Dict[str, Any]]: A list of dictionaries, each representing a parsed article with standardized metadata fields. Returns an empty list if an error occurs during the search or parsing.
     """
     if not email:
         print("Warning: NCBI recommends providing an email for PubMed API access.")
@@ -52,15 +51,12 @@ def search_pubmed(
 
 def _parse_pubmed_article(article_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Parses a single article dictionary from pymed's format to our common internal format.
-
-    Args:
-        article_data: A dictionary representing an article from pymed.
-
+    Convert a PubMed article dictionary from pymed into a standardized internal format.
+    
+    Extracts and normalizes key metadata fields including title, authors (formatted as "LastName FirstName"), journal, publication year, DOI, PubMed ID, abstract, keywords, funding information (parsed from grant strings), cited references (list of PMIDs), and the raw article data. Funding entries are structured when possible, with fallback to raw text if parsing fails. The result is suitable for downstream processing or analysis.
+    
     Returns:
-        A dictionary representing the article in the common internal format.
-        Keys include: 'title', 'authors', 'journal', 'year', 'doi', 'pubmed_id',
-                      'abstract', 'keywords', 'source_type'.
+        A dictionary containing the standardized article metadata.
     """
     # Extracting authors: format as "LastName, FirstNameInitial"
     authors_list = []

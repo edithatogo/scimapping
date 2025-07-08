@@ -34,6 +34,11 @@ SAMPLE_RECORDS_FOR_FUNDING = [
 class TestFundingAnalyzer(unittest.TestCase):
 
     def test_extract_funding_data_placeholder(self):
+        """
+        Tests that FundingAnalyzer.extract_funding_data() correctly identifies funders and grant IDs from a variety of sample records using placeholder extraction logic.
+        
+        Verifies that the method extracts the expected funders and grant IDs from structured fields and acknowledgements, and that only records containing funding information are included in the results.
+        """
         analyzer = FundingAnalyzer(SAMPLE_RECORDS_FOR_FUNDING)
         results = analyzer.extract_funding_data()
 
@@ -75,6 +80,11 @@ class TestFundingAnalyzer(unittest.TestCase):
 
 
     def test_get_funding_summary_stats_placeholder(self):
+        """
+        Test that the funding summary statistics are correctly computed from sample records.
+        
+        Verifies that the analyzer reports the correct total number of records, records with funding information, unique normalized funders, and top funders by frequency.
+        """
         analyzer = FundingAnalyzer(SAMPLE_RECORDS_FOR_FUNDING)
         stats = analyzer.get_funding_summary_stats()
 
@@ -97,7 +107,11 @@ class TestFundingAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.funding_analyzer.SPACY_AVAILABLE', False)
     def test_extract_funding_data_spacy_unavailable(self, mock_spacy_unavailable):
-        """Test extraction when spaCy is marked as unavailable."""
+        """
+        Test that funding extraction falls back to regex-based grant ID extraction when spaCy is unavailable.
+        
+        Verifies that no funder organizations are extracted from acknowledgements and only grant IDs matching regex patterns are identified.
+        """
         records_with_ack = [
             {"title": "NLP Test", "acknowledgements": "Funded by The Grant Givers and grant XYZ-123."}
         ]
@@ -116,7 +130,11 @@ class TestFundingAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.funding_analyzer.SPACY_AVAILABLE', True)
     @patch('sciencemapping.analysis.funding_analyzer.nlp_spacy') # This is the loaded spaCy model
     def test_extract_funding_data_with_spacy_nlp(self, mock_nlp_model, mock_spacy_available):
-        """Test NLP-based extraction from acknowledgements when spaCy is available."""
+        """
+        Test that funding extraction uses spaCy NLP to identify funders and grant IDs in acknowledgements when spaCy is available.
+        
+        Simulates spaCy's entity recognition to ensure that organization names and grant IDs are correctly extracted from free-text acknowledgements. Verifies that the NLP model is called and that only relevant funders and grant IDs are included in the results.
+        """
 
         # Setup mock for spaCy NLP processing
         mock_doc = MagicMock()
@@ -148,6 +166,9 @@ class TestFundingAnalyzer(unittest.TestCase):
         mock_nlp_model.assert_called_once_with("This study was generously funded by The Grant Giving Foundation (Grant ABC/987). Thanks to Some University for facilities.")
 
     def test_empty_records_funding(self):
+        """
+        Test that FundingAnalyzer returns empty results and zero statistics when given no records.
+        """
         analyzer = FundingAnalyzer([])
         extracted = analyzer.extract_funding_data()
         self.assertEqual(len(extracted), 0)

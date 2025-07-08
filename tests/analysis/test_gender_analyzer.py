@@ -24,6 +24,11 @@ SAMPLE_RECORDS_FOR_GENDER = [
 class TestGenderAnalyzer(unittest.TestCase):
 
     def test_get_first_name(self):
+        """
+        Test extraction of first names from various author name formats using the GenderAnalyzer's helper method.
+        
+        Verifies correct handling of names with commas, apostrophes, multi-part surnames, non-Latin characters, single names, empty strings, and None values.
+        """
         analyzer = GenderAnalyzer([]) # No records needed for this specific helper test
         self.assertEqual(analyzer._get_first_name("Doe, Jane A."), "Jane")
         self.assertEqual(analyzer._get_first_name("Smith, John B."), "John")
@@ -43,7 +48,11 @@ class TestGenderAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.gender_analyzer.gender_detector_module') # This is the module that has Detector
     @patch('sciencemapping.analysis.gender_analyzer.GENDER_GUESSER_AVAILABLE', True)
     def test_infer_author_genders_with_gender_guesser(self, mock_gender_detector_module_in_analyzer):
-        """Test gender inference when gender-guesser is available and works."""
+        """
+        Test that `infer_author_genders` correctly infers author genders using the gender-guesser library.
+        
+        Simulates the presence of the gender-guesser library by mocking its detector and configuring expected gender outputs for various first names. Verifies that the detector is called with the correct names and that the inferred genders in the results match the mocked return values for each author, including handling of ambiguous and unknown names.
+        """
         # mock_gender_detector_module_in_analyzer is the mock for sciencemapping.analysis.gender_analyzer.gender_detector_module
         # We need to make its 'Detector' attribute a mock class, and then get its instance
         mock_detector_class = MagicMock(name="MockDetectorClass")
@@ -51,6 +60,15 @@ class TestGenderAnalyzer(unittest.TestCase):
         mock_detector_instance = mock_detector_class.return_value # This is what Detector() will return
 
         def get_gender_side_effect(name): # name is the first_name string
+            """
+            Simulate gender detection by returning a predefined gender category for a given first name.
+            
+            Parameters:
+                name (str): The first name to analyze.
+            
+            Returns:
+                str: A gender category such as "female", "male", "andy", "mostly_male", "mostly_female", "unknown", or "name_not_found" based on the input name.
+            """
             name_lower = name.lower()
             if name_lower == "jane": return "female"
             if name_lower == "john": return "male"
@@ -86,7 +104,9 @@ class TestGenderAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.gender_analyzer.gender_detector_module')
     @patch('sciencemapping.analysis.gender_analyzer.GENDER_GUESSER_AVAILABLE', True)
     def test_infer_author_genders_gender_guesser_error(self, mock_gender_detector_module_in_analyzer):
-        """Test gender inference when gender-guesser call raises an error."""
+        """
+        Test that `infer_author_genders` assigns "error_in_guessing" and issues a warning when the gender-guesser library raises an exception during gender inference.
+        """
         mock_detector_class = MagicMock(name="MockDetectorClass")
         mock_gender_detector_module_in_analyzer.Detector = mock_detector_class
         mock_detector_instance = mock_detector_class.return_value
@@ -103,7 +123,11 @@ class TestGenderAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.gender_analyzer.GENDER_GUESSER_AVAILABLE', False)
     def test_infer_author_genders_fallback_to_placeholder(self): # Argument removed
-        """Test gender inference falls back to placeholder when gender-guesser is unavailable."""
+        """
+        Test that gender inference uses placeholder values when the gender-guesser library is unavailable.
+        
+        Verifies that `infer_author_genders` assigns a placeholder gender (e.g., "male (placeholder)") to authors when external gender detection is not possible.
+        """
         analyzer = GenderAnalyzer(SAMPLE_RECORDS_FOR_GENDER)
         results = analyzer.infer_author_genders()
 
@@ -116,12 +140,25 @@ class TestGenderAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.gender_analyzer.gender_detector_module')
     @patch('sciencemapping.analysis.gender_analyzer.GENDER_GUESSER_AVAILABLE', True)
     def test_get_gender_distribution_stats_with_gender_guesser(self, mock_gender_detector_module_in_analyzer):
-        """Test gender distribution with mocked gender-guesser."""
+        """
+        Test that `get_gender_distribution_stats` correctly aggregates gender counts using a mocked gender-guesser.
+        
+        Simulates gender detection for a variety of author names and verifies that the resulting statistics reflect the expected distribution of female, male, and unknown genders.
+        """
         mock_detector_class = MagicMock(name="MockDetectorClass")
         mock_gender_detector_module_in_analyzer.Detector = mock_detector_class
         mock_detector_instance = mock_detector_class.return_value
 
         def get_gender_side_effect(name): # Simplified for distribution test
+            """
+            Simulates gender detection for a given first name, returning predefined gender categories for testing purposes.
+            
+            Parameters:
+                name (str): The first name to evaluate.
+            
+            Returns:
+                str: The inferred gender category ("female", "male", or "unknown") based on the input name.
+            """
             name = name.lower()
             if name in ["jane", "maria"]: return "female"
             # Correcting based on _get_first_name("Taylor, P.") == "P."
@@ -146,7 +183,11 @@ class TestGenderAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.gender_analyzer.GENDER_GUESSER_AVAILABLE', False)
     def test_get_gender_distribution_stats_placeholder(self): # Argument removed
-        """Test gender distribution using placeholder logic."""
+        """
+        Test that gender distribution statistics are correctly computed using placeholder logic when the gender-guesser library is unavailable.
+        
+        Verifies that the fallback gender inference assigns placeholder genders and that the resulting distribution counts are as expected for the provided sample records.
+        """
         analyzer = GenderAnalyzer(SAMPLE_RECORDS_FOR_GENDER)
         stats = analyzer.get_gender_distribution_stats()
 

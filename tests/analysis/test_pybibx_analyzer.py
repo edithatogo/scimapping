@@ -17,13 +17,20 @@ class TestPybibxAnalyzer(unittest.TestCase):
 
     def setUp(self):
         # This analyzer might see the actual PYBIBX_AVAILABLE state at import time of its module
+        """
+        Set up test fixtures for each test method by initializing PybibxAnalyzer instances with sample and empty records.
+        """
         self.analyzer_placeholder_default = PybibxAnalyzer(SAMPLE_RECORDS)
         self.empty_analyzer = PybibxAnalyzer([])
 
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_co_authorship_network_with_pybibx_success(self, mock_pybibx_module): # Only one mock arg expected
-        """Test co-authorship network when pybibx is available and call succeeds."""
+        """
+        Test that co-authorship network generation uses pybibx when available and returns correctly transformed results.
+        
+        Simulates a successful pybibx API call, verifies correct mapping of input records, checks that pybibx methods are called with expected arguments, and asserts that the returned network dictionary has the correct structure and content.
+        """
         mock_corpus_instance = MagicMock(name="MockPybibxCorpus")
         mock_pybibx_module.Corpus.return_value = mock_corpus_instance
 
@@ -65,7 +72,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_co_authorship_network_with_pybibx_api_error(self, mock_pybibx_module): # Only one mock arg expected
-        """Test co-authorship network when pybibx call fails, falling back to placeholder."""
+        """
+        Test that the co-authorship network method falls back to the placeholder implementation when the pybibx API raises an exception.
+        
+        Simulates a failure in the pybibx co-authorship analysis and verifies that the analyzer prints appropriate error messages and returns the expected placeholder network structure.
+        """
         mock_corpus_instance = MagicMock(name="MockPybibxCorpus")
         mock_pybibx_module.Corpus.return_value = mock_corpus_instance
         mock_pybibx_module.analysis = MagicMock()
@@ -86,7 +97,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', False)
     def test_co_authorship_network_fallback_placeholder(self): # Removed mock_pybibx_unavailable
-        """Test co-authorship network uses placeholder when pybibx is initially unavailable."""
+        """
+        Test that the co-authorship network method falls back to the placeholder implementation when pybibx is unavailable.
+        
+        Verifies that the returned network structure and contents are correct for different author thresholds, including correct node and edge counts and expected node IDs.
+        """
         analyzer_no_pybibx = PybibxAnalyzer(SAMPLE_RECORDS) # PYBIBX_AVAILABLE=False will be seen
         network_t1 = analyzer_no_pybibx.co_authorship_network(author_threshold=1)
 
@@ -117,6 +132,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_keyword_cooccurrence_with_pybibx_success(self, mock_pybibx_module): # mock_pybibx_available removed
+        """
+        Test that `keyword_cooccurrence_network` uses pybibx to generate a keyword co-occurrence network when pybibx is available.
+        
+        Verifies that the analyzer correctly initializes the pybibx Corpus, calls the pybibx analysis API with the specified threshold, and transforms the returned nodes and edges into the expected output format.
+        """
         mock_corpus = MagicMock(name="MockPybibxCorpus_KW")
         mock_pybibx_module.Corpus.return_value = mock_corpus
 
@@ -143,6 +163,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', False)
     def test_keyword_cooccurrence_fallback_placeholder(self): # Removed mock_pybibx_unavailable
+        """
+        Test that `keyword_cooccurrence_network` returns the correct placeholder network when `pybibx` is unavailable.
+        
+        Verifies that the network structure and edge counts match expected values for different keyword thresholds.
+        """
         analyzer = PybibxAnalyzer(SAMPLE_RECORDS)
         network_t1 = analyzer.keyword_cooccurrence_network(keyword_threshold=1)
         self.assertIsNotNone(network_t1)
@@ -153,6 +178,9 @@ class TestPybibxAnalyzer(unittest.TestCase):
         self.assertEqual(len(network_t2["edges"]), 2)
 
     def test_keyword_cooccurrence_empty_input_placeholder(self):
+        """
+        Test that keyword_cooccurrence_network returns None when initialized with empty records.
+        """
         network = self.empty_analyzer.keyword_cooccurrence_network()
         self.assertIsNone(network)
 
@@ -160,6 +188,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
     @patch('sciencemapping.analysis.pybibx_analyzer.pybibx')
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', True)
     def test_citation_analysis_with_pybibx_success(self, mock_pybibx_module): # mock_pybibx_available removed
+        """
+        Test that `citation_analysis` returns the correct transformed citation summary when `pybibx` is available and provides valid data.
+        
+        Simulates the presence of the `pybibx` library and its API, mocks the citation summary output, and verifies that the analyzer correctly calls the `pybibx` methods and transforms the result into the expected dictionary structure.
+        """
         mock_corpus = MagicMock(name="MockPybibxCorpus_Cite")
         mock_pybibx_module.Corpus.return_value = mock_corpus
 
@@ -194,6 +227,11 @@ class TestPybibxAnalyzer(unittest.TestCase):
 
     @patch('sciencemapping.analysis.pybibx_analyzer.PYBIBX_AVAILABLE', False)
     def test_citation_analysis_fallback_placeholder(self): # Removed mock_pybibx_unavailable argument
+        """
+        Test that `citation_analysis` returns correct placeholder citation statistics when `pybibx` is unavailable.
+        
+        Verifies that the method produces a summary with the expected total number of papers with citation data and that the most cited paper is correctly identified from the sample records.
+        """
         analyzer = PybibxAnalyzer(SAMPLE_RECORDS) # Uses SAMPLE_RECORDS from global scope
         stats = analyzer.citation_analysis()
         self.assertIsNotNone(stats)

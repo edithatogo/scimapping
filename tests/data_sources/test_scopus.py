@@ -16,7 +16,11 @@ class TestScopusDataSource(unittest.TestCase):
     # This test will now need to patch 'sciencemapping.data_sources.scopus.config' itself.
     @patch('sciencemapping.data_sources.scopus.config')
     def test_is_scopus_configured_true(self, mock_config_object):
-        """Test _is_scopus_configured when API key is present."""
+        """
+        Test that _is_scopus_configured returns True when the configuration includes a valid API key.
+        
+        Simulates a configuration object containing the required "Authentication" section and "APIKey" to verify correct detection of a configured Scopus API.
+        """
         # Simulate config being a dictionary with necessary keys
         mock_config_object.__contains__ = lambda item: item in ["Authentication", "APIKey"]
         mock_config_object.__getitem__.return_value = {"APIKey": "testkey123"}
@@ -28,10 +32,24 @@ class TestScopusDataSource(unittest.TestCase):
 
         # Let's make mock_config_object behave like a dict for these checks
         def mock_config_contains(key):
+            """
+            Simulate a configuration object's __contains__ method, returning True only for the key "Authentication".
+            
+            Parameters:
+            	key (str): The key to check for presence.
+            
+            Returns:
+            	bool: True if the key is "Authentication", otherwise False.
+            """
             if key == "Authentication": return True
             return False
 
         def mock_config_getitem(slf_ignore, key): # Added slf_ignore for implicit self
+            """
+            Mock implementation of a configuration object's __getitem__ method for testing.
+            
+            Returns a mock authentication dictionary when the key is "Authentication", simulating presence of an "APIKey". Raises KeyError for other keys.
+            """
             if key == "Authentication":
                 auth_dict_mock = MagicMock()
                 # For __contains__ on auth_dict_mock, side_effect lambda should also expect 2 args if used directly by 'in'
@@ -74,7 +92,9 @@ class TestScopusDataSource(unittest.TestCase):
 
     # This test does not directly use the mock_config argument if it's for parsing logic only
     def test_parse_scopus_search_result(self): # mock_config argument removed if not used
-        """Test parsing of a single Scopus search result item."""
+        """
+        Tests that `_parse_scopus_search_result` correctly extracts and formats fields from Scopus search result items, handling both structured author lists and author name strings.
+        """
         # pybliometrics.scopus.ScopusSearch returns namedtuples for results
         ScopusSearchResult = namedtuple("ScopusSearchResult", [
             "title", "authors", "author_names", "publicationName", "coverDate", "doi",
@@ -128,7 +148,11 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.ScopusSearch')
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=True)
     def test_search_scopus_success(self, mock_is_configured, MockScopusSearch): # mock_config_global removed
-        """Test successful Scopus search."""
+        """
+        Test that `search_scopus` returns correctly parsed results when the Scopus API returns multiple search results.
+        
+        Verifies that the function calls the ScopusSearch class with the expected parameters and that the returned list contains dictionaries with the correct titles and Scopus IDs for each result.
+        """
         # Mocking the ScopusSearch results
         # Corrected: "_asdict" removed from field list.
         ScopusSearchResultFields = ["title", "eid", "coverDate", "publicationName", "doi", "authors", "author_names", "description", "authkeywords", "aggregationType", "subtypeDescription"]
@@ -156,7 +180,9 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.ScopusSearch')
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=True)
     def test_search_scopus_no_results(self, mock_is_configured, MockScopusSearch): # mock_config_global removed
-        """Test Scopus search when no results are found."""
+        """
+        Test that `search_scopus` returns an empty list when no results are found for the given query.
+        """
         mock_search_instance = MockScopusSearch.return_value
         type(mock_search_instance).results = PropertyMock(return_value=None) # No results
 
@@ -165,7 +191,11 @@ class TestScopusDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=False)
     def test_search_scopus_not_configured(self, mock_is_configured): # mock_config_global removed
-        """Test search_scopus when pybliometrics is not configured."""
+        """
+        Test the behavior of `search_scopus` when the Scopus API is not configured.
+        
+        Simulates scenarios where the internal configuration check fails and where the underlying `ScopusSearch` call either returns no results or raises a `FileNotFoundError`. Verifies that appropriate warnings are printed and that an empty result list is returned in both cases.
+        """
         # This test should be updated to reflect the two-stage failure:
         # 1. Our _is_scopus_configured() returns False -> prints a warning.
         # 2. pybliometrics call (e.g. ScopusSearch) then fails with FileNotFoundError.
@@ -193,7 +223,11 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.AbstractRetrieval')
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=True)
     def test_fetch_scopus_abstract_details_success(self, mock_is_configured, MockAbstractRetrieval): # mock_config_global removed
-        """Test successful fetching of abstract details."""
+        """
+        Test that `fetch_scopus_abstract_details` returns a dictionary with correct abstract, keywords, references, and funding details when retrieval is successful.
+        
+        Simulates a successful call to `AbstractRetrieval` and verifies that all expected fields are present and correctly populated in the returned details dictionary.
+        """
         mock_retrieval_instance = MockAbstractRetrieval.return_value
         mock_retrieval_instance.abstract = "Full abstract text."
         mock_retrieval_instance.authkeywords = ["keyword1", "keyword2"]
@@ -220,7 +254,9 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.AbstractRetrieval')
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=True)
     def test_fetch_scopus_abstract_details_error(self, mock_is_configured, MockAbstractRetrieval): # mock_config_global removed
-        """Test error handling in fetch_scopus_abstract_details."""
+        """
+        Test that fetch_scopus_abstract_details returns None and prints a warning when a Scopus404Error is raised during abstract retrieval.
+        """
         import pybliometrics.scopus # Ensure the parent module is imported
         # Assuming pybliometrics.scopus.errors is a dict mapping error names to classes based on persistent errors
         # This is a guess based on the 'dict object has no attribute' error.
@@ -256,7 +292,9 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.AbstractRetrieval', side_effect=FileNotFoundError("Mocked: Scopus config.ini not found"))
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=False) # Simulate our check failing
     def test_fetch_details_not_configured_file_not_found(self, mock_is_configured, MockAbstractRetrieval): # mock_config_global removed
-        """Test fetch_scopus_abstract_details when _is_scopus_configured is False and pybliometrics raises FileNotFoundError."""
+        """
+        Test that fetch_scopus_abstract_details returns None and prints appropriate warnings when Scopus is not configured and pybliometrics raises FileNotFoundError.
+        """
         with patch('builtins.print') as mock_print:
             details = fetch_scopus_abstract_details("any_eid")
             self.assertIsNone(details)
@@ -266,7 +304,11 @@ class TestScopusDataSource(unittest.TestCase):
     @patch('sciencemapping.data_sources.scopus.AbstractRetrieval') # No FileNotFoundError
     @patch('sciencemapping.data_sources.scopus._is_scopus_configured', return_value=False) # Simulate our check failing
     def test_fetch_details_not_configured_general_warning(self, mock_is_configured, MockAbstractRetrieval): # mock_config_global removed
-        """Test fetch_scopus_abstract_details prints warning if _is_scopus_configured is False but no FileNotFoundError."""
+        """
+        Test that fetch_scopus_abstract_details prints a warning and returns default values when the Scopus API is not configured but no FileNotFoundError is raised.
+        
+        Simulates the scenario where _is_scopus_configured returns False and AbstractRetrieval does not raise an exception, ensuring that a general warning is printed and the returned details contain mostly None or empty fields, along with the raw dictionary from the mock retrieval object.
+        """
         # Make AbstractRetrieval return a mock object that will result in a dict of Nones
         mock_retrieval_object = MagicMock()
         # Ensure it has a to_dict method for the raw_abstract_retrieval_dict part

@@ -4,16 +4,14 @@ import re # Moved import re to the top
 
 def parse_wos_file(file_path: str, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
     """
-    Parses a Web of Science export file (e.g., plain text, BibTeX) using metaknowledge.
-    WoS plain text files usually contain field tags like TI, AU, SO, PY, AB, DE, CR etc.
-
-    Args:
-        file_path: The path to the Web of Science export file.
-        encoding: The encoding of the file. Defaults to 'utf-8'.
-
+    Parse a Web of Science export file into a list of standardized record dictionaries.
+    
+    Parameters:
+        file_path (str): Path to the Web of Science export file.
+        encoding (str): File encoding to use. Defaults to 'utf-8'.
+    
     Returns:
-        A list of dictionaries, where each dictionary represents a record
-        parsed into a common internal format.
+        List[Dict[str, Any]]: List of parsed records, each as a dictionary in a common internal format. Returns an empty list if the file cannot be read or contains no valid records.
     """
     records_data: List[Dict[str, Any]] = []
     try:
@@ -42,14 +40,12 @@ def parse_wos_file(file_path: str, encoding: str = 'utf-8') -> List[Dict[str, An
 
 def _parse_wos_record(record: metaknowledge.Record) -> Optional[Dict[str, Any]]:
     """
-    Parses a single metaknowledge.Record object into our common internal format.
-
-    Args:
-        record: A metaknowledge.Record object.
-
+    Convert a single Web of Science (WoS) record from `metaknowledge.Record` into a standardized dictionary format.
+    
     Returns:
-        A dictionary representing the record in the common internal format,
-        or None if the record is minimal or cannot be parsed.
+        A dictionary containing parsed bibliographic, funding, and citation information, or `None` if the record is empty or lacks a title.
+    
+    The output includes normalized fields for title, authors, journal, year, DOI, WoS ID, abstract, keywords (from both author keywords and Keywords Plus), document type, times cited, raw record data, structured funding entries (from FU and FX fields), and a list of cited reference DOIs if available.
     """
     if not record:
         return None

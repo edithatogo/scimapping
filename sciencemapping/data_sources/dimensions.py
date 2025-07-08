@@ -13,8 +13,16 @@ def search_dimensions_api(
     dsl_instance: Optional[Any] = None
 ) -> List[Dict[str, Any]]:
     """
-    Searches Dimensions using its API and the DSL (Domain Specific Language).
-    Requires the 'dimcli' library and appropriate API credentials configured.
+    Executes a DSL query against the Dimensions API and returns a list of parsed publication records.
+    
+    Parameters:
+        dsl_query (str): The Dimensions DSL query string to execute.
+        max_results (int, optional): Maximum number of results to return. Defaults to 100.
+    
+    Returns:
+        List[Dict[str, Any]]: A list of standardized dictionaries representing publication records, or an empty list if the API client is unavailable or an error occurs.
+    
+    Requires the 'dimcli' library and valid API credentials to be configured.
     """
     if not DIMENSIONS_API_AVAILABLE:
         print("Error: 'dimcli' library not found. Cannot use Dimensions API search.")
@@ -54,7 +62,15 @@ def search_dimensions_api(
 
 def _parse_dimensions_api_record(item_json: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Parses a single record JSON from the Dimensions API into our common internal format.
+    Convert a raw Dimensions API record into a standardized internal dictionary format.
+    
+    Extracts bibliographic metadata including title, authors, journal, year, DOI, abstract, keywords, document type, and Dimensions ID. Also processes cited references and funding information, aggregating funder names, grant IDs, and identifiers. Returns `None` if the input is invalid or lacks a title.
+    
+    Parameters:
+        item_json (dict): Raw JSON record from the Dimensions API.
+    
+    Returns:
+        dict or None: Parsed record in internal format, or `None` if input is invalid.
     """
     if not item_json or not isinstance(item_json, dict):
         return None
@@ -169,7 +185,11 @@ def _parse_dimensions_api_record(item_json: Dict[str, Any]) -> Optional[Dict[str
     return parsed
 
 def parse_dimensions_file(file_path: str, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
-    """ Placeholder for parsing Dimensions data from an export file (e.g., CSV). """
+    """
+    Placeholder function for parsing Dimensions data from an export file.
+    
+    Currently not implemented; always returns an empty list.
+    """
     print(f"Notice: File parsing for Dimensions ('{file_path}') is not yet fully implemented.")
     return []
 

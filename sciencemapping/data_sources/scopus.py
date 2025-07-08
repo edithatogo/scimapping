@@ -8,7 +8,12 @@ import time
 # This usually happens in a config.ini file or via environment variables.
 
 def _is_scopus_configured() -> bool:
-    """Checks if the Scopus API key is likely configured in pybliometrics's main config object."""
+    """
+    Check whether a Scopus API key is present in the pybliometrics configuration.
+    
+    Returns:
+        bool: True if an API key is configured, otherwise False.
+    """
     if "Authentication" in config and "APIKey" in config["Authentication"] and config["Authentication"]["APIKey"]:
         return True
     return False
@@ -20,7 +25,18 @@ def search_scopus(
     view: str = "STANDARD"
 ) -> List[Dict[str, Any]]:
     """
-    Searches Scopus for articles matching the query using ScopusSearch.
+    Performs a Scopus search for articles matching the specified query and returns a list of parsed article metadata dictionaries.
+    
+    The function uses the ScopusSearch interface from pybliometrics to execute the query, handling API key configuration as needed. It limits the number of returned results to `max_results` (up to 200 per request) and parses each result into a standardized dictionary format. Handles missing configuration, Scopus-specific errors, and restores any temporarily overridden API key configuration.
+    
+    Parameters:
+        query (str): The Scopus search query string.
+        max_results (int, optional): Maximum number of articles to return. Defaults to 25.
+        api_key (str, optional): Scopus API key to use for this request. If not provided, uses the configured key.
+        view (str, optional): Scopus API view parameter. Defaults to "STANDARD".
+    
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries containing parsed metadata for each found article. Returns an empty list if no results are found or an error occurs.
     """
     original_key = None
     api_key_manually_set = False
@@ -92,7 +108,13 @@ def search_scopus(
 
 def fetch_scopus_abstract_details(eid: str, api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
-    Fetches detailed information for a single Scopus document.
+    Retrieve detailed metadata for a Scopus document by its EID, including abstract, keywords, references, and structured funding information.
+    
+    Parameters:
+        eid (str): The Scopus EID of the document to retrieve.
+    
+    Returns:
+        dict or None: A dictionary containing abstract text, author and index keywords, reference count, a list of cited references (DOIs or EIDs), structured funding entries, acknowledgements text, and the raw abstract retrieval dictionary. Returns None if retrieval fails or the document is not found.
     """
     original_key = None
     api_key_manually_set = False
@@ -223,7 +245,9 @@ def fetch_scopus_abstract_details(eid: str, api_key: Optional[str] = None) -> Op
 
 def _parse_scopus_search_result(item: Any) -> Dict[str, Any]:
     """
-    Parses a single item from ScopusSearch results (a namedtuple) into our common internal format.
+    Convert a single Scopus search result item into a standardized dictionary format.
+    
+    Extracts key metadata fields such as title, authors, journal, year, DOI, Scopus EID, PubMed ID, abstract, keywords, document type, and acknowledgements. Also includes the raw search result data for reference.
     """
     authors_list = []
     if getattr(item, 'authors', None) and isinstance(item.authors, list):

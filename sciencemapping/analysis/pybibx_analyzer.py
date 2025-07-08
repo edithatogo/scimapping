@@ -25,10 +25,12 @@ class PybibxAnalyzer:
 
     def __init__(self, records: List[Dict[str, Any]]):
         """
-        Initializes the analyzer with a list of records in the common internal format.
-
-        Args:
-            records: A list of publication records.
+        Initialize the analyzer with a list of publication records, preparing them for bibliometric analysis.
+        
+        If the `pybibx` library is available, attempts to map the input records to the format expected by `pybibx` and creates a `pybibx.Corpus` object for advanced analysis. If `pybibx` is unavailable or initialization fails, sets up the analyzer to use internal placeholder logic instead.
+        
+        Parameters:
+            records (List[Dict[str, Any]]): List of publication records in the internal dictionary format.
         """
         self.records = records
         self.pybibx_corpus = None # This would be the pybibx Corpus object
@@ -75,13 +77,15 @@ class PybibxAnalyzer:
         network_type: str
         ) -> Dict[str, Any]:
         """
-        Transforms hypothetical pybibx network output (list of nodes, list of edge tuples)
-        into our standard dict format: {"nodes": [{"id":...}], "edges": [{"source":..., "target":..., "weight":...}]}.
-
-        Args:
-            pybibx_nodes: Assumed list of node identifiers (e.g., author names, keywords).
-            pybibx_edges: Assumed list of edge tuples (e.g., (item1, item2, weight)).
-            network_type: String identifier for the network type.
+        Convert pybibx network output into a standardized dictionary format with stringified node and edge information.
+        
+        Parameters:
+            pybibx_nodes: List of node identifiers, such as author names or keywords.
+            pybibx_edges: List of edge tuples in the form (source, target, weight).
+            network_type: Type of the network represented as a string.
+        
+        Returns:
+            Dictionary containing "nodes" (list of dicts with "id"), "edges" (list of dicts with "source", "target", "weight"), and "type".
         """
         if pybibx_nodes is None: pybibx_nodes = []
         if pybibx_edges is None: pybibx_edges = []
@@ -95,6 +99,15 @@ class PybibxAnalyzer:
         return {"nodes": nodes_transformed, "edges": edges_transformed, "type": network_type}
 
     def co_authorship_network(self, author_threshold: int = 1) -> Optional[Dict[str, Any]]:
+        """
+        Generate a co-authorship network from the publication records, optionally using the pybibx library if available.
+        
+        Parameters:
+            author_threshold (int): Minimum number of co-authored papers required for an edge to be included in the network.
+        
+        Returns:
+            dict or None: A dictionary representing the co-authorship network with "nodes", "edges", and "type" keys, or None if there are no records.
+        """
         if not self.records: return None
 
         if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'coauthorship'):
@@ -134,6 +147,17 @@ class PybibxAnalyzer:
 
 
     def keyword_cooccurrence_network(self, keyword_threshold: int = 1) -> Optional[Dict[str, Any]]:
+        """
+        Generate a keyword co-occurrence network from publication records, optionally using pybibx if available.
+        
+        If the pybibx library and its keyword analysis method are available, this method uses them to compute the network; otherwise, it constructs the network by counting co-occurrences of keywords within each record. Edges are included only if their co-occurrence count meets or exceeds the specified threshold.
+        
+        Parameters:
+            keyword_threshold (int): Minimum number of co-occurrences required for an edge to be included in the network.
+        
+        Returns:
+            dict or None: A dictionary representing the keyword co-occurrence network with "nodes", "edges", and "type" keys, or None if there are no records.
+        """
         if not self.records: return None
 
         if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'keywords'):
@@ -175,6 +199,18 @@ class PybibxAnalyzer:
 
 
     def citation_analysis(self) -> Optional[Dict[str, Any]]:
+        """
+        Performs citation analysis on the publication records and returns a summary of the most cited papers.
+        
+        If the `pybibx` library is available and supports citation analysis, this method uses it to generate a summary including the top cited documents and total papers with citation data. If `pybibx` is unavailable or an error occurs, it falls back to aggregating citation counts from available fields in the records and returns the top 10 most cited papers.
+        
+        Returns:
+            A dictionary containing:
+                - "most_cited_papers": List of the top cited papers with their titles, DOIs, and citation counts.
+                - "total_papers_with_citation_data": Number of papers with available citation data.
+                - "raw_pybibx_summary": (If `pybibx` is used) The raw summary output from `pybibx`.
+            Returns None if there are no records to analyze.
+        """
         if not self.records: return None
 
         if self.pybibx_corpus and PYBIBX_AVAILABLE and pybibx and hasattr(pybibx, 'analysis') and hasattr(pybibx.analysis, 'citation_summary'): # Renamed for clarity

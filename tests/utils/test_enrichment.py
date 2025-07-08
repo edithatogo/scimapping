@@ -71,17 +71,38 @@ class TestCrossRefEnrichment(unittest.TestCase):
 
     def setUp(self):
         # Make copies of records for each test to avoid interference
+        """
+        Prepares a fresh copy of the sample records before each test to prevent test interference.
+        """
         self.records = [rec.copy() for rec in SAMPLE_RECORDS_FOR_ENRICHMENT]
 
     @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
     @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
     def test_enrichment_success_multiple_dois(self, MockCrossref_class_arg): # Renamed arg for clarity
-        """Test successful enrichment for multiple DOIs, including DOI normalization and batching."""
+        """
+        Test enrichment of multiple records with various DOI scenarios, verifying batching, DOI normalization, and correct assignment of funding entries.
+        
+        This test simulates CrossRef API responses for multiple unique DOIs, including cases with multiple funders, no funders, duplicate DOIs, and API errors. It asserts that:
+        - The CrossRef client is instantiated with the correct mailto.
+        - DOIs are batched and all unique DOIs are queried.
+        - Funding entries are correctly extracted and assigned to records, including funder names, grant IDs, CrossRef funder IDs, and source information.
+        - Records without DOIs, with no funder info, or with API errors remain unmodified.
+        - Duplicate DOIs receive consistent enrichment.
+        """
         mock_cr_instance = MockCrossref_class_arg.return_value # Corrected to MockCrossref_class_arg
 
         # Simulate cr.works(ids=...) behavior: it takes a list of DOIs
         # and returns a list of corresponding results.
         def works_side_effect(ids=None):
+            """
+            Simulates the CrossRef API `works` method by returning mock responses for provided DOIs.
+            
+            Parameters:
+                ids (list of str, optional): List of DOI strings to query.
+            
+            Returns:
+                list: Mocked CrossRef API responses corresponding to the provided DOIs.
+            """
             results_map = {
                 "10.1234/doi1": MOCK_CROSSREF_RESPONSE_DOI1,
                 "10.1234/doi2": MOCK_CROSSREF_RESPONSE_DOI2, # Note: input DOI has https:// prefix
@@ -173,7 +194,11 @@ class TestCrossRefEnrichment(unittest.TestCase):
     @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
     @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
     def test_enrichment_api_call_general_exception(self, MockCrossref_class_arg):
-        """Test handling of a general exception during API call."""
+        """
+        Test that a general exception during the CrossRef API call results in no enrichment and appropriate warnings.
+        
+        Verifies that when an exception (e.g., network timeout) occurs during the CrossRef API request, the original records are returned unchanged and relevant warnings are issued.
+        """
         mock_cr_instance = MockCrossref_class_arg.return_value
         mock_cr_instance.works.side_effect = Exception("Network timeout")
 
@@ -215,7 +240,11 @@ class TestCrossRefEnrichment(unittest.TestCase):
     @patch('sciencemapping.utils.enrichment.Crossref_class') # Corrected patch target
     @patch('sciencemapping.utils.enrichment.HABANERO_AVAILABLE', True)
     def test_enrichment_merges_with_existing_funding_entries(self, MockCrossref_class_arg): # Argument already correctly named
-        """Test that CrossRef data appends/merges with existing funding_entries."""
+        """
+        Test that enrichment merges CrossRef funding data with existing funding entries in records.
+        
+        Verifies that new CrossRef funding entries are appended to records with existing funding data, and that overlapping funders are deduplicated and updated with CrossRef information (such as funder IDs and grant IDs) without overwriting the original source of information.
+        """
         mock_cr_instance = MockCrossref_class_arg.return_value # Use the correct argument name
 
         # Mock CrossRef response for a DOI
@@ -228,6 +257,15 @@ class TestCrossRefEnrichment(unittest.TestCase):
         }
         # This lambda will be the side_effect for cr.works(ids=...)
         def works_side_effect_merge(ids=None):
+            """
+            Simulates CrossRef API responses for specific DOI batches to support funding data enrichment tests.
+            
+            Parameters:
+                ids (list, optional): List of DOI strings to query.
+            
+            Returns:
+                list: A list containing mock CrossRef API response dictionaries for the provided DOIs, or an empty list if no match is found.
+            """
             if ids == ["10.1000/doi1"]: # Make sure to match cleaned DOI
                 return [doi1_cr_response]
             # Handle the dup DOI case separately or make side_effect more general

@@ -30,13 +30,13 @@ class ScienceMapper:
                  crossref_mailto: Optional[str] = DEFAULT_CROSSREF_MAILTO
                  ):
         """
-        Initializes the ScienceMapper.
-
-        Args:
-            pubmed_email: Email for PubMed API polite pool.
-            openalex_email: Email for OpenAlex API polite pool.
-            crossref_mailto: Email for CrossRef API polite pool (used by enrichment).
-        """
+                 Initialize a ScienceMapper instance with optional emails for polite API usage.
+                 
+                 Parameters:
+                     pubmed_email (str, optional): Email address used for PubMed API requests.
+                     openalex_email (str, optional): Email address used for OpenAlex API requests.
+                     crossref_mailto (str, optional): Email address used for CrossRef API requests during enrichment.
+                 """
         self.pubmed_email = pubmed_email
         self.openalex_email = openalex_email
         self.crossref_mailto = crossref_mailto
@@ -55,9 +55,23 @@ class ScienceMapper:
         openalex_filter_criteria: Optional[Dict[str, Any]] = None
     ) -> 'ScienceMapper':
         """
-        Fetches data from the specified source. Stores records internally.
-        Returns the ScienceMapper instance for chaining.
-        Raises ValueError for unknown source or missing parameters.
+        Fetch bibliographic records from the specified data source and store them internally.
+        
+        Parameters:
+            source (DataSourceName): The name of the data source to fetch from.
+            query (Optional[str]): Search query string, required for most sources.
+            file_path (Optional[str]): Path to a Web of Science file, required for 'wos_file' source.
+            max_results (int): Maximum number of records to fetch (default is 100).
+            wos_file_encoding (str): Encoding to use when reading a WoS file (default is 'utf-8').
+            dimensions_dsl_instance (Optional[Any]): DSL instance for Dimensions API, required for 'dimensions_api' source.
+            scopus_api_key (Optional[str]): API key for Scopus, required for 'scopus_api' source.
+            openalex_filter_criteria (Optional[Dict[str, Any]]): Filter criteria for OpenAlex API.
+        
+        Returns:
+            ScienceMapper: The current instance for method chaining.
+        
+        Raises:
+            ValueError: If required parameters are missing or the data source is unknown.
         """
         self._records = []
         self._source_of_records = source
@@ -97,7 +111,12 @@ class ScienceMapper:
         return self
 
     def get_records(self) -> List[Dict[str, Any]]:
-        """Returns the currently loaded records."""
+        """
+        Retrieve the list of currently loaded bibliographic records.
+        
+        Returns:
+            List of dictionaries representing the loaded records.
+        """
         return self._records
 
     def analyze(
@@ -107,8 +126,18 @@ class ScienceMapper:
         keyword_threshold: int = 1
     ) -> Optional[Dict[str, Any]]:
         """
-        Performs the specified analysis on the currently loaded records.
-        Raises ValueError if no records are loaded or analysis type is unknown.
+        Perform a specified bibliometric analysis on the currently loaded records.
+        
+        Parameters:
+            analysis_type (AnalysisTypeName): The type of analysis to perform ('co_authorship', 'keyword_cooccurrence', or 'citation_analysis').
+            coauth_threshold (int): Minimum number of co-authored works required to include an edge in the co-authorship network.
+            keyword_threshold (int): Minimum number of co-occurrences required to include an edge in the keyword co-occurrence network.
+        
+        Returns:
+            Optional[Dict[str, Any]]: The results of the analysis as a dictionary, or None if no records are loaded or the analysis yields no results.
+        
+        Raises:
+            ValueError: If the analysis type is unknown.
         """
         if not self._records:
             print("Warning: No records loaded to analyze. Returning None.")
@@ -136,16 +165,13 @@ class ScienceMapper:
 
     def enrich_with_crossref(self, use_configured_mailto: bool = True) -> 'ScienceMapper':
         """
-        Enriches the currently loaded records with funding information from CrossRef.
-        This method requires the 'habanero' library to be installed.
-
-        Args:
-            use_configured_mailto: If True (default), uses the mailto email provided
-                                   during ScienceMapper initialization. If False, the default
-                                   in enrichment.py (or None if that's also None) will be used.
-
+        Enriches loaded bibliographic records with funding information from CrossRef, if available.
+        
+        Parameters:
+            use_configured_mailto (bool): Whether to use the configured CrossRef email for API requests.
+        
         Returns:
-            The ScienceMapper instance for chaining.
+            ScienceMapper: The current instance, allowing method chaining.
         """
         if not self._records:
             print("Warning: No records loaded. Please fetch data before attempting CrossRef enrichment.")

@@ -18,6 +18,11 @@ except ImportError:
 
 class GenderAnalyzer:
     def __init__(self, records: List[Dict[str, Any]], name_field: str = "authors"):
+        """
+        Initialize the GenderAnalyzer with a list of records and the field name containing author names.
+        
+        If the `gender-guesser` library is available, attempts to initialize its Detector for gender inference; otherwise, uses a placeholder heuristic.
+        """
         self.records = records
         self.name_field = name_field # Field containing author names
         self.gender_detector = None
@@ -34,7 +39,11 @@ class GenderAnalyzer:
 
 
     def _get_first_name(self, full_name: str) -> Optional[str]:
-        """Extracts a potential first name from a full name string."""
+        """
+        Extracts the probable first name from a full name string.
+        
+        Handles names formatted as "Last, First M." or "First M. Last" by splitting on commas and spaces. Returns the first word of the relevant name part, or None if the input is invalid.
+        """
         if not full_name or not isinstance(full_name, str):
             return None
 
@@ -52,10 +61,12 @@ class GenderAnalyzer:
 
     def infer_author_genders(self) -> List[Dict[str, Any]]:
         """
-        Adds inferred gender to author records. This is a placeholder.
-        A real implementation would use a library like gender-guesser.
-        This method MODIFIES the records in-place or returns new ones.
-        For now, let's return a new list of authors with gender.
+        Infers the gender of each unique author in the records using either the `gender-guesser` library or a placeholder heuristic.
+        
+        For each unique author name, extracts the first name and attempts to determine gender. If `gender-guesser` is available, uses its detector; otherwise, applies a simple heuristic based on the first letter and length of the first name. Returns a list of dictionaries containing the original author name, the first name used for inference, and the inferred gender.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each with keys `"name"`, `"first_name_used_for_guess"`, and `"inferred_gender"`.
         """
         authors_with_gender: List[Dict[str, Any]] = []
         processed_authors = set() # To avoid re-processing same author name
@@ -105,9 +116,10 @@ class GenderAnalyzer:
 
     def get_gender_distribution_stats(self) -> Dict[str, Any]:
         """
-        Calculates statistics on gender distribution. Placeholder.
-        This would typically run *after* infer_author_genders has augmented data
-        or by calling it internally.
+        Compute and return statistics on the inferred gender distribution among authors.
+        
+        Returns:
+            stats (Dict[str, Any]): A dictionary containing the total number of authors processed and the count of each inferred gender category.
         """
         # For this example, let's assume infer_author_genders is called implicitly
         # or the records passed to __init__ are already augmented.

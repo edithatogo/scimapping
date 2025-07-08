@@ -13,7 +13,11 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.dimensions.Dsl')
     def test_search_dimensions_api_success(self, MockDsl):
-        """Test successful search using Dimensions API and parsing."""
+        """
+        Tests that a successful Dimensions API search returns and correctly parses multiple publication records.
+        
+        Verifies that the API client is called with the correct query and limit, and that the returned results contain accurately parsed titles, IDs, authors (handling different formats), journal titles (from different possible fields), and keywords (from both 'concepts' and 'keywords' fields).
+        """
         mock_dsl_instance = MockDsl.return_value
 
         # Example JSON response items from Dimensions API (structure depends on 'return' part of DSL query)
@@ -64,7 +68,9 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.dimensions.Dsl')
     def test_search_dimensions_api_login_failure(self, MockDsl):
-        """Test search_dimensions_api when Dsl initialization (login) fails."""
+        """
+        Test that `search_dimensions_api` returns an empty list and logs an error when Dsl client initialization fails.
+        """
         MockDsl.side_effect = Exception("Simulated Dsl login error")
 
         with patch('builtins.print') as mock_print:
@@ -74,7 +80,9 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.dimensions.Dsl')
     def test_search_dimensions_api_query_error(self, MockDsl):
-        """Test search_dimensions_api when the API query itself raises an error."""
+        """
+        Test that search_dimensions_api returns an empty list and logs an error when the API query raises an exception.
+        """
         mock_dsl_instance = MockDsl.return_value
         mock_dsl_instance.query_iterative.side_effect = Exception("Simulated API query error")
 
@@ -85,7 +93,9 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.dimensions.Dsl')
     def test_search_dimensions_api_no_results(self, MockDsl):
-        """Test search_dimensions_api when the query returns no results."""
+        """
+        Test that search_dimensions_api returns an empty list when the API query yields no results.
+        """
         mock_dsl_instance = MockDsl.return_value
         mock_dsl_instance.query_iterative.return_value = iter([]) # Empty iterator
 
@@ -93,7 +103,11 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
         self.assertEqual(results, [])
 
     def test_parse_dimensions_api_record_full(self):
-        """Test parsing of a single Dimensions API record with various fields."""
+        """
+        Test that a fully populated Dimensions API record is parsed correctly.
+        
+        Verifies extraction and normalization of all relevant fields, including title, authors (with different formats), journal, year, DOI, abstract, keywords (from both 'keywords' and 'concepts'), document type, source type, and raw data retention.
+        """
         item_json = {
             "id": "pub.111",
             "title": "Full Dimensions Record",
@@ -128,7 +142,9 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
         self.assertEqual(parsed["raw_data"], item_json)
 
     def test_parse_dimensions_api_record_minimal(self):
-        """Test parsing with minimal data (only title)."""
+        """
+        Test that parsing a minimal Dimensions API record with only an ID and title returns the expected default values for missing fields.
+        """
         item_json = {"id": "pub.min", "title": "Minimal Title Only"}
         parsed = _parse_dimensions_api_record(item_json)
         self.assertIsNotNone(parsed)
@@ -139,13 +155,17 @@ class TestDimensionsAPIDataSource(unittest.TestCase):
         self.assertIsNone(parsed["year"])
 
     def test_parse_dimensions_api_record_no_title(self):
-        """Test that a record with no title returns None."""
+        """
+        Test that parsing a Dimensions API record without a title returns None.
+        """
         item_json = {"id": "pub.notitle", "doi": "10.dim/notitle"}
         parsed = _parse_dimensions_api_record(item_json)
         self.assertIsNone(parsed)
 
     def test_parse_dimensions_api_record_empty_input(self):
-        """Test parsing with empty or None input."""
+        """
+        Test that parsing an empty dictionary or None input returns None.
+        """
         self.assertIsNone(_parse_dimensions_api_record(None))
         self.assertIsNone(_parse_dimensions_api_record({}))
 
@@ -155,7 +175,9 @@ from sciencemapping.data_sources.dimensions import parse_dimensions_file
 
 class TestDimensionsFileDataSource(unittest.TestCase):
     def test_parse_dimensions_file_placeholder(self):
-        """Test the placeholder function for file parsing."""
+        """
+        Test that the placeholder `parse_dimensions_file` function returns an empty list and prints a notice about unimplemented file parsing.
+        """
         with patch('builtins.print') as mock_print:
             results = parse_dimensions_file("dummy.csv")
             self.assertEqual(results, [])

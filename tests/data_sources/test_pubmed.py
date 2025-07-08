@@ -5,7 +5,11 @@ from sciencemapping.data_sources.pubmed import search_pubmed, _parse_pubmed_arti
 class TestPubMedDataSource(unittest.TestCase):
 
     def test_parse_pubmed_article(self):
-        """Test parsing of a single PubMed article dictionary."""
+        """
+        Tests that a detailed PubMed article dictionary is correctly parsed into a normalized article format.
+        
+        Verifies extraction and formatting of title, authors, journal, publication year, DOI, cleaned PubMed ID, abstract, keywords, source type, and inclusion of raw data. Checks parsing of funding entries from grant strings, ensuring correct funder names, grant IDs, source information, and raw funding text. Asserts that cited references are filtered to exclude `None` values and only valid PubMed IDs are included.
+        """
         raw_article_data = {
             "title": "Test Title",
             "authors": [
@@ -75,7 +79,11 @@ class TestPubMedDataSource(unittest.TestCase):
         self.assertListEqual(parsed_article["cited_references"], ["PMID1", "PMID2", "PMID3"]) # None should be filtered out
 
     def test_parse_pubmed_article_minimal_data(self):
-        """Test parsing with minimal or missing data fields."""
+        """
+        Test that parsing a PubMed article with only minimal data correctly defaults missing fields.
+        
+        Verifies that when only the title and PubMed ID are provided, all other fields are set to empty lists or None as appropriate in the parsed article dictionary.
+        """
         raw_article_data = {
             "title": "Minimal Title",
             "pubmed_id": "9876543"
@@ -97,7 +105,14 @@ class TestPubMedDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.pubmed.PubMed')
     def test_search_pubmed_success(self, MockPubMed):
-        """Test successful PubMed search and data parsing integration."""
+        """
+        Test that `search_pubmed` successfully retrieves and parses multiple PubMed articles.
+        
+        This test mocks the PubMed API to return two articles and verifies that `search_pubmed`:
+        - Instantiates the PubMed client with the correct tool name and email.
+        - Calls the query method with the expected parameters.
+        - Returns a list of parsed article dictionaries with correct field extraction and author formatting.
+        """
         # Mock PubMedArticle and its toDict method
         mock_article_1_dict = {
             "title": "Article 1", "pubmed_id": "111", "doi": "doi1",
@@ -143,7 +158,11 @@ class TestPubMedDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.pubmed.PubMed')
     def test_search_pubmed_no_email_uses_default(self, MockPubMed):
-        """Test that DEFAULT_TOOL_EMAIL is used if no email is provided."""
+        """
+        Test that the default email address is used by `search_pubmed` when no email is provided.
+        
+        Verifies that `search_pubmed` instantiates the PubMed client with the default email and issues a warning when the email parameter is omitted.
+        """
         mock_pubmed_instance = MockPubMed.return_value
         mock_pubmed_instance.query.return_value = [] # No articles needed for this test
 
@@ -154,7 +173,9 @@ class TestPubMedDataSource(unittest.TestCase):
 
     @patch('sciencemapping.data_sources.pubmed.PubMed')
     def test_search_pubmed_api_error(self, MockPubMed):
-        """Test PubMed search when the API call raises an exception."""
+        """
+        Test that `search_pubmed` returns an empty list and prints an error message when the PubMed API call raises an exception.
+        """
         mock_pubmed_instance = MockPubMed.return_value
         mock_pubmed_instance.query.side_effect = Exception("API Connection Error")
 
@@ -164,7 +185,11 @@ class TestPubMedDataSource(unittest.TestCase):
             mock_print.assert_any_call("Error during PubMed search: API Connection Error")
 
     def test_parse_pubmed_article_missing_keywords_and_date(self):
-        """Test parsing when keywords or publication_date are None or missing."""
+        """
+        Test that PubMed article parsing handles missing or None keywords and publication date fields.
+        
+        Verifies that keywords default to an empty list if None, and that the year is None when publication date is absent.
+        """
         raw_article_data_no_keywords = {
             "title": "No Keywords Title", "pubmed_id": "333", "keywords": None
         }

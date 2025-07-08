@@ -58,13 +58,24 @@ FUNDER_NORMALIZATION_MAP = {
 
 class FundingAnalyzer:
     def __init__(self, records: List[Dict[str, Any]]):
+        """
+        Initialize the FundingAnalyzer with a list of publication records.
+        
+        Parameters:
+            records (List[Dict[str, Any]]): List of publication records to analyze for funding information.
+        """
         self.records = records
         # Use the globally loaded spaCy model and status
         self.nlp = nlp_spacy
         self.spacy_available = SPACY_AVAILABLE
 
     def _normalize_funder_name(self, name: str) -> str:
-        """Normalizes common funder name variations."""
+        """
+        Normalize a funder name using a predefined mapping of common name variants.
+        
+        Returns:
+            str: The normalized funder name, or "Unknown Funder" if the input is invalid or empty.
+        """
         if not name or not isinstance(name, str):
             return "Unknown Funder"
         stripped_name = name.strip()
@@ -72,8 +83,12 @@ class FundingAnalyzer:
 
     def extract_funding_data(self) -> List[Dict[str, Any]]:
         """
-        Extracts and normalizes funding information from records.
-        Prioritizes structured funding fields, then attempts NLP on acknowledgements.
+        Extracts and normalizes funding agency names and grant IDs from each publication record.
+        
+        For each record, prioritizes extraction from structured funding fields (`funding_entries`). If structured data is absent, and spaCy NLP is available, analyzes acknowledgements text fields to identify funders and grant IDs using named entity recognition and regex patterns. Normalizes funder names and tracks the source of extracted information.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each containing the record index, title, DOI, sorted lists of normalized funders and grant IDs, and the source of the funding information.
         """
         extracted_funding_info: List[Dict[str, Any]] = []
 
@@ -145,7 +160,12 @@ class FundingAnalyzer:
         return extracted_funding_info
 
     def get_funding_summary_stats(self) -> Dict[str, Any]:
-        """Calculates summary statistics about funding."""
+        """
+        Compute and return summary statistics on funding information extracted from the records.
+        
+        Returns:
+            A dictionary containing the total number of records analyzed, the number of records with any funding information, the count of unique normalized funders, and the top 10 most frequent normalized funders with their respective counts.
+        """
         funding_data = self.extract_funding_data()
 
         total_records_with_funding = len(funding_data)

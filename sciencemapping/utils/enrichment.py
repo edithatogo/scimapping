@@ -37,6 +37,11 @@ _FUNDER_NORMALIZATION_MAP_ENRICH = {
 }
 
 def _normalize_funder_name_enrich(name: str) -> str:
+    """
+    Normalize a funder name string to a canonical form for enrichment purposes.
+    
+    Returns "Unknown Funder" if the input is empty or not a string; otherwise, returns a normalized funder name using a predefined mapping, or the stripped original name if no mapping exists.
+    """
     if not name or not isinstance(name, str):
         return "Unknown Funder" # Or return the input if preferred for non-strings
     stripped_name = name.strip()
@@ -48,16 +53,17 @@ def enrich_records_with_crossref_funding(
     batch_size: int = 20 # CrossRef API best practice for /works?ids= is around 20-50 DOIs
 ) -> List[Dict[str, Any]]:
     """
-    Enriches a list of publication records with funding information from CrossRef using their DOIs.
-    Funding information is merged into the 'funding_entries' list of each record.
-
-    Args:
-        records: A list of records in the common internal format. Each record should ideally have a 'doi' field.
-        mailto: An email address for CrossRef's polite API pool. Highly recommended.
-        batch_size: Number of DOIs to include in a single batch request to CrossRef.
-
+    Enriches publication records with funding information from CrossRef using their DOIs.
+    
+    For each record containing a DOI, queries the CrossRef API in batches to retrieve associated funding data. Extracted funder names, CrossRef funder registry IDs, and grant award IDs are normalized and merged into each record's `funding_entries` list, avoiding simple duplicates. Handles missing dependencies, absent DOIs, and API errors gracefully.
+    
+    Parameters:
+        records (List[Dict[str, Any]]): List of publication records, each ideally containing a 'doi' field.
+        mailto (Optional[str]): Email address for polite CrossRef API usage. Defaults to a generic address if not provided.
+        batch_size (int): Number of DOIs to query per CrossRef API request. Defaults to 20.
+    
     Returns:
-        The list of records, potentially augmented with new entries in the 'funding_entries' field.
+        List[Dict[str, Any]]: The input records, potentially augmented with new funding entries in the 'funding_entries' field.
     """
     if not HABANERO_AVAILABLE or Crossref_class is None:
         warnings.warn("Enrichment: habanero library not available. Skipping CrossRef funding enrichment.", RuntimeWarning)

@@ -1,0 +1,17 @@
+# Project dependencies will be listed here
+pybibx # For bibliometric analysis
+requests # For general HTTP requests, potentially for APIs that don't have dedicated libraries
+pymed # For PubMed
+metaknowledge # For Web of Science, Scopus (if used directly)
+# Add other libraries as data sources are implemented, e.g.:
+# scholarly # For Google Scholar (though not in initial list, good to keep in mind)
+# crossrefapi # For CrossRef
+# semanticscholar # For Semantic Scholar API
+# habanero # For Crossref
+# pybliometrics # For Scopus
+openalex # For OpenAlex (corrected name)
+dimcli # For Dimensions API (corrected name)
+spacy # For NLP in FundingAnalyzer
+# Users will also need to download a spaCy model, e.g.: python -m spacy download en_core_web_sm
+habanero # For CrossRef API client
+gender-guesser # For gender inference

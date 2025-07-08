@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sciencemapping"
+version = "0.1.0" # Initial version
+description = "A Python library for science mapping and bibliometric analysis."
+readme = "README.md"
+authors = [
+    { name = "Sciencemapping Contributor", email = "contributor@example.com" },
+]
+license = { text = "MIT License" } # Placeholder, confirm actual license
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License", # Placeholder
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Text Processing :: Indexing",
+]
+keywords = ["bibliometrics", "science mapping", "scientometrics", "network analysis", "research analysis"]
+
+dependencies = [
+    "requests>=2.20.0",
+    "pymed>=0.8.9",
+    "metaknowledge>=3.4.1",
+    "dimcli>=1.4", # For Dimensions API
+    "openalex>=0.1.0", # For OpenAlex API
+    "pybibx", # Placeholder, actual version depends on availability
+    "spacy>=3.0", # For NLP in FundingAnalyzer
+    "habanero>=1.2.0", # For CrossRef API client (example version, check latest)
+    "gender-guesser>=0.4.0", # For gender inference (example version, check latest)
+    # Note: pybliometrics for Scopus is also a key dependency but has caused issues.
+    # Add it here once those are resolvable or if a stable version is confirmed.
+    # "pybliometrics>=4.0"
+]
+# Users of NLP features will also need to download a spaCy model, e.g.:
+# python -m spacy download en_core_web_sm
+
+[project.optional-dependencies]
+dev = [
+    "unittest-xml-reporting", # Example, if XML test reports are needed
+    "flake8",
+    "black",
+    "mypy",
+    "pytest", # If using pytest for tests
+]
+docs = [
+    "sphinx",
+    "furo", # Example Sphinx theme
+]
+
+[project.urls]
+Homepage = "https://github.com/example/sciencemapping" # Placeholder
+Repository = "https://github.com/example/sciencemapping" # Placeholder
+# Documentation = "https://sciencemapping.readthedocs.io/" # Placeholder
+
+[tool.setuptools.packages.find]
+where = ["."] # Look for packages in the current directory
+include = ["sciencemapping*"]  # Include the sciencemapping package and its submodules
+exclude = ["tests*", "examples*"] # Exclude tests and examples from the package distribution
+
+# If using setuptools_scm for versioning from git tags (optional, requires setuptools_scm in build-system.requires)
+# [tool.setuptools_scm]
+# write_to = "sciencemapping/_version.py"

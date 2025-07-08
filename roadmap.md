@@ -39,13 +39,13 @@ To create a comprehensive, user-friendly, and extensible Python library for cond
             *   [X] Refined to merge data into common `funding_entries` field.
         *   [P] Enhance data source parsers for better structured funding data extraction. - *Initial pass completed; further refinement & testing needed.*
     *   [X] **Gender Analysis Module:**
-        *   [P] Conceptual `GenderAnalyzer` with placeholder logic. - *Done*
-        *   [X] Integrate `gender-guesser` or similar library. - *Done with `gender-guesser`*
-        *   [P] Conceptual `GenderAnalyzer` with placeholder logic. - *Done*
-        *   [ ] Integrate `gender-guesser` or similar library.
-    *   [ ] Refine common data format (e.g., for `cited_references`, structured funding).
-    *   [ ] Expand unit test coverage and address existing test execution blockers if environment allows.
-*   **Status:** In Progress. Conceptual `pybibx` integration is done. Initial NLP for funding is done. CrossRef integration is next.
+        *   [X] Conceptual `GenderAnalyzer` with placeholder logic.
+        *   [X] Integrated `gender-guesser`.
+    *   [P] Refine common data format:
+        *   [X] Defined and implemented `funding_entries` in parsers.
+        *   [X] Defined and implemented `cited_references` in parsers.
+    *   [P] Expand unit test coverage and address existing test execution blockers if environment allows. - *Ongoing, some tests still blocked.*
+*   **Status:** In Progress. Key data structures (`funding_entries`, `cited_references`) defined and parsers updated. Conceptual `pybibx` and initial Gender/Funding analyzers are in place. CrossRef enrichment added.
 
 ### Phase 3: Advanced Analysis & Visualization
 

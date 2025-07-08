@@ -143,9 +143,19 @@ def _parse_pubmed_article(article_data: Dict[str, Any]) -> Dict[str, Any]:
         "abstract": article_data.get("abstract"),
         "keywords": keywords,
         "funding_entries": funding_entries if funding_entries else None,
+        "cited_references": None, # Initialize
         "source_type": "pubmed",
         "raw_data": article_data
     }
+
+    # Cited References (list of PMIDs from pymed if available)
+    # pymed's article.references contains a list of PMIDs of cited articles.
+    # article_data['references'] would be this list.
+    if article_data.get("references_loaded") and isinstance(article_data.get("references"), list):
+        cited_refs_pmids = [str(pmid) for pmid in article_data["references"] if pmid]
+        if cited_refs_pmids:
+            parsed_record["cited_references"] = cited_refs_pmids
+
     return parsed_record
 
 if __name__ == "__main__":

@@ -101,8 +101,71 @@ def _parse_dimensions_api_record(item_json: Dict[str, Any]) -> Optional[Dict[str
         "keywords": list(set(keywords)),
         "document_type": item_json.get('type'),
         "source_type": "dimensions_api",
+        # Initialize new fields
+        "funding_entries": None,
+        "cited_references": None,
         "raw_data": item_json
     }
+
+    # --- Extract Cited References ---
+    if "references" in item_json and isinstance(item_json["references"], list):
+        ref_ids = [str(ref_id) for ref_id in item_json["references"] if ref_id and isinstance(ref_id, (str, int))]
+        if ref_ids:
+            parsed["cited_references"] = sorted(list(set(ref_ids)))
+
+    # --- Extract Funding Information ---
+    funding_entries_list: List[Dict[str, Any]] = []
+    if "funders" in item_json and isinstance(item_json["funders"], list):
+        for funder_detail in item_json["funders"]:
+            if not isinstance(funder_detail, dict): continue
+            entry: Dict[str, Any] = {"source_of_info": "dimensions_api_funders_field"}
+            funder_name = funder_detail.get("name") or funder_detail.get("organization")
+            if funder_detail.get("acronym"): funder_name = funder_detail.get("acronym")
+            if funder_name: entry["funder_name"] = str(funder_name)
+
+            grant_ids_for_funder = []
+            if "grant_ids" in funder_detail and isinstance(funder_detail["grant_ids"], list):
+                grant_ids_for_funder.extend([str(gid) for gid in funder_detail["grant_ids"] if gid])
+            elif "grants" in funder_detail and isinstance(funder_detail["grants"], list):
+                 for grant_item in funder_detail["grants"]:
+                    if isinstance(grant_item, dict) and grant_item.get("id"):
+                        grant_ids_for_funder.append(str(grant_item["id"]))
+                    elif isinstance(grant_item, str): grant_ids_for_funder.append(grant_item)
+            if grant_ids_for_funder: entry["grant_ids"] = grant_ids_for_funder
+
+            if funder_detail.get("id"): entry["dimensions_funder_id"] = funder_detail.get("id")
+            if funder_detail.get("ror_id"): entry["funder_ror_id"] = funder_detail.get("ror_id")
+
+            if entry.get("funder_name") or entry.get("grant_ids"):
+                funding_entries_list.append(entry)
+
+    if "supporting_grant_ids" in item_json and isinstance(item_json["supporting_grant_ids"], list):
+        all_grant_ids_from_field = [str(gid) for gid in item_json["supporting_grant_ids"] if gid]
+        if all_grant_ids_from_field:
+            if not funding_entries_list:
+                funding_entries_list.append({
+                    "funder_name": "Unknown Funder (from supporting_grant_ids)",
+                    "grant_ids": all_grant_ids_from_field,
+                    "source_of_info": "dimensions_api_grant_ids_field"
+                })
+            else: # Heuristic: add to first funder if not already present elsewhere
+                for grant_id in all_grant_ids_from_field:
+                    is_present = any("grant_ids" in entry and grant_id in entry["grant_ids"] for entry in funding_entries_list)
+                    if not is_present:
+                        added_to_existing = False
+                        for entry in funding_entries_list:
+                            if entry.get("funder_name"): # Add to first available funder
+                                if "grant_ids" not in entry: entry["grant_ids"] = []
+                                entry["grant_ids"].append(grant_id) # type: ignore
+                                added_to_existing = True
+                                break
+                        if not added_to_existing: # Fallback if no named funders
+                             funding_entries_list.append({
+                                "funder_name": "Unknown Funder (from supporting_grant_ids)",
+                                "grant_ids": [grant_id], "source_of_info": "dimensions_api_grant_ids_field"})
+    if funding_entries_list:
+        parsed["funding_entries"] = funding_entries_list
+
     return parsed
 
 def parse_dimensions_file(file_path: str, encoding: str = 'utf-8') -> List[Dict[str, Any]]:

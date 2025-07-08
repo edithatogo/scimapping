@@ -28,8 +28,8 @@ This document outlines known limitations, unimplemented features, and potential 
         *   Ensure unit tests for `PybibxAnalyzer` accurately mock the verified `pybibx` API.
 
 5.  **Common Data Format - `cited_references`**:
-    *   Conceptually added `cited_references: Optional[List[str]]` to the common internal data format to support advanced citation analyses.
-    *   **Action**: Update individual data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, etc.) to populate this field if the source data provides cited reference information. (To Do)
+    *   [P] Parsers for PubMed, WoS, Scopus (conceptual), Dimensions (conceptual), and OpenAlex (conceptual) updated to extract available cited reference identifiers (DOIs, PMIDs, EIDs, OpenAlex IDs, etc.) into the `cited_references: Optional[List[str]]` field. Tests for PubMed & WoS pass; others blocked.
+    *   **Next Steps**: Test Scopus, Dimensions, OpenAlex parser updates for `cited_references` once environment allows. Refine DOI extraction from WoS `CR` tags if needed.
 
 6.  **Funding Data - Structured Extraction & CrossRef**:
     *   **Data Source Parsers**: [X] All five data source parsers (`pubmed.py`, `wos.py`, `scopus.py`, `dimensions.py`, `openalex.py`) updated to extract available structured/semi-structured funding information into a standardized `funding_entries: List[Dict]` field. Logic refined for PubMed GR tags and WoS FU/FX fields. Unit tests for PubMed and WoS parsers updated and pass; Scopus, Dimensions, OpenAlex parser updates are conceptual due to test environment blockers.

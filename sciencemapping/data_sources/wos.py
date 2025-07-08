@@ -215,6 +215,35 @@ def _parse_wos_record(record: metaknowledge.Record) -> Optional[Dict[str, Any]]:
     else:
         parsed["funding_entries"] = None
 
+    # Cited References (CR tag from WoS)
+    # Each item in record.get('CR', []) is a string like "Author, Year, Journal, V, P, DOI"
+    # We want to extract DOIs if possible.
+    cited_references_list: List[str] = []
+    raw_cited_refs = record.get('CR', [])
+    if isinstance(raw_cited_refs, list):
+        for ref_str_raw in raw_cited_refs:
+            ref_str = str(ref_str_raw) # Ensure it's a string
+            # Regex to find DOIs: matches "10." followed by numbers/letters/.-_();:/
+            # This is a common pattern for DOIs.
+            doi_match = re.search(r'\b(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)\b', ref_str, re.IGNORECASE)
+            if doi_match:
+                doi = doi_match.group(1).strip()
+                # Further clean DOI: remove trailing dots sometimes found in WoS CR tags
+                if doi.endswith('.'):
+                    doi = doi[:-1]
+                cited_references_list.append(doi)
+            # else:
+                # If no DOI, could try to parse WoS ID or store raw string, but focusing on DOIs for now.
+                # For example, if WoS ID like "WOS:000..." is present and extractable.
+                # wos_id_match = re.search(r'\b(WOS:[0-9A-Z]+)\b', ref_str, re.IGNORECASE)
+                # if wos_id_match:
+                #    cited_references_list.append(wos_id_match.group(1))
+
+    if cited_references_list:
+        parsed["cited_references"] = sorted(list(set(cited_references_list))) # Store unique sorted DOIs
+    else:
+        parsed["cited_references"] = None
+
     return parsed
 
 

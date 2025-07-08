@@ -20,9 +20,11 @@ class TestPubMedDataSource(unittest.TestCase):
             "keywords": ["test", "pubmed", "python"],
             "grants": [ # Example grant list from pymed (based on GR tag)
                 "R01 CA123456/CA/NCI NIH HHS/United States",
-                "Wellcome Trust 098765/Z/12/Z", # Different format
-                "K99 AG000000//NIH HHS/United States" # Missing agency acronym part
-            ]
+                "Wellcome Trust 098765/Z/12/Z",
+                "K99 AG000000//NIH HHS/United States"
+            ],
+            "references_loaded": True,
+            "references": ["PMID1", "PMID2", None, "PMID3"] # Example cited PMIDs
         }
         parsed_article = _parse_pubmed_article(raw_article_data)
 
@@ -67,6 +69,10 @@ class TestPubMedDataSource(unittest.TestCase):
         self.assertEqual(funding_entries[2]["source_of_info"], "pubmed_GR_tag")
         self.assertEqual(funding_entries[2]["raw_funding_text"], "K99 AG000000//NIH HHS/United States")
 
+        # Assert cited_references
+        self.assertIn("cited_references", parsed_article)
+        self.assertIsNotNone(parsed_article["cited_references"])
+        self.assertListEqual(parsed_article["cited_references"], ["PMID1", "PMID2", "PMID3"]) # None should be filtered out
 
     def test_parse_pubmed_article_minimal_data(self):
         """Test parsing with minimal or missing data fields."""
@@ -86,7 +92,8 @@ class TestPubMedDataSource(unittest.TestCase):
         self.assertIsNone(parsed_article["abstract"])
         self.assertListEqual(parsed_article["keywords"], [])
         self.assertEqual(parsed_article["source_type"], "pubmed")
-        self.assertIsNone(parsed_article["funding_entries"]) # Check for funding_entries
+        self.assertIsNone(parsed_article["funding_entries"])
+        self.assertIsNone(parsed_article["cited_references"]) # Check for cited_references
 
     @patch('sciencemapping.data_sources.pubmed.PubMed')
     def test_search_pubmed_success(self, MockPubMed):

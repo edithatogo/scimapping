@@ -22,8 +22,14 @@ class TestWoSDataSource(unittest.TestCase):
             'ID': "keyword plus A; keyword plus B", # Keywords Plus
             'DT': "Article",
             'TC': "10", # Times Cited
-            'FU': "National Science Foundation (NSF) (Grant XYZ123, ABC-456); Wellcome Trust (WT0987)", # Funding Agency and Grant Number
-            'FX': "This work was supported by the NSF and Wellcome Trust. Additional thanks for internal grant." # Funding Text
+            'FU': "National Science Foundation (NSF) (Grant XYZ123, ABC-456); Wellcome Trust (WT0987)",
+            'FX': "This work was supported by the NSF and Wellcome Trust. Additional thanks for internal grant.",
+            'CR': [ # Cited References
+                "Smith J, 2020, J AM CHEM SOC, V1, P1, DOI 10.1000/jacs.test.1",
+                "Doe A, 2019, NATURE, V2, P2, DOI 10.1038/nature.test.2",
+                "Lee C, 2018, SCIENCE, V3, P3 (No DOI here)",
+                "Cho K, 2022, J PHYS CHEM B, V126, P789, DOI 10.1021/acs.jpcb.1c09525." # DOI with trailing dot
+            ]
         }
         mock_mk_record = MagicMock()
 
@@ -89,9 +95,19 @@ class TestWoSDataSource(unittest.TestCase):
         wt_entry = next((fe for fe in funding_entries if "Wellcome Trust" in fe.get("funder_name", "")), None)
         self.assertIsNotNone(wt_entry)
         self.assertEqual(wt_entry["funder_name"], "Wellcome Trust")
-        self.assertListEqual(wt_entry["grant_ids"], ["WT0987"]) # Ensure it's a list with one item
+        self.assertListEqual(wt_entry["grant_ids"], ["WT0987"])
         self.assertEqual(wt_entry["source_of_info"], "wos_FU_field")
         self.assertEqual(wt_entry["raw_funding_text"], "Wellcome Trust (WT0987)")
+
+        # Assert cited_references
+        self.assertIn("cited_references", parsed)
+        self.assertIsNotNone(parsed["cited_references"])
+        expected_cited_dois = sorted([
+            "10.1000/jacs.test.1",
+            "10.1038/nature.test.2",
+            "10.1021/acs.jpcb.1c09525" # Trailing dot should be removed
+        ])
+        self.assertListEqual(parsed["cited_references"], expected_cited_dois)
 
 
     def test_parse_wos_record_minimal(self):
@@ -114,8 +130,9 @@ class TestWoSDataSource(unittest.TestCase):
         self.assertListEqual(parsed["authors"], [])
         self.assertIsNone(parsed["year"])
         self.assertListEqual(parsed["keywords"], [])
-        self.assertIsNone(parsed.get("funding_entries")) # Check funding_entries
-        self.assertIsNone(parsed.get("acknowledgements_text_fx")) # Check fx text
+        self.assertIsNone(parsed.get("funding_entries"))
+        self.assertIsNone(parsed.get("acknowledgements_text_fx"))
+        self.assertIsNone(parsed.get("cited_references")) # Check cited_references
 
     def test_parse_wos_record_no_title(self):
         """Test that a record with no title returns None."""

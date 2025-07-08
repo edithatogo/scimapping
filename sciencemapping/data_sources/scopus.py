@@ -159,7 +159,32 @@ def fetch_scopus_abstract_details(eid: str, api_key: Optional[str] = None) -> Op
         if funding_entries_list:
             details["funding_entries"] = funding_entries_list
         else:
-            details["funding_entries"] = None # Explicitly set to None if empty
+            details["funding_entries"] = None
+
+        # Cited References from Scopus AbstractRetrieval
+        # ab_ret.references is a list of namedtuples, each with 'id' (EID), 'doi', 'title', etc.
+        cited_references_list: List[str] = []
+        if hasattr(ab_ret, 'references') and ab_ret.references:
+            for ref in ab_ret.references:
+                if not ref: continue # Skip if ref object is None
+
+                ref_doi = getattr(ref, 'doi', None)
+                ref_eid = getattr(ref, 'id', None) # Scopus EID
+
+                if ref_doi and isinstance(ref_doi, str) and ref_doi.strip():
+                    # Prefer DOI, clean it (remove potential URL prefix if Scopus ever adds it)
+                    cleaned_doi = ref_doi.replace("https://doi.org/", "").strip()
+                    if cleaned_doi:
+                        cited_references_list.append(cleaned_doi)
+                elif ref_eid and isinstance(ref_eid, str) and ref_eid.strip():
+                    # Fallback to Scopus EID if DOI not present/valid
+                    cited_references_list.append(ref_eid)
+                # Could also store ref.title or other ref details if needed, but list of IDs is primary goal.
+
+        if cited_references_list:
+            details["cited_references"] = sorted(list(set(cited_references_list)))
+        else:
+            details["cited_references"] = None
 
         return details
     except FileNotFoundError:
@@ -245,8 +270,9 @@ def _parse_scopus_search_result(item: Any) -> Dict[str, Any]:
         "abstract": getattr(item, 'description', None),
         "keywords": keywords,
         "document_type": document_type,
-        "funding_entries": None,  # Initialize, details usually from AbstractRetrieval
-        "acknowledgements_text_scopus": getattr(item, 'funding_text', None), # If somehow available in search results
+        "funding_entries": None,
+        "acknowledgements_text_scopus": getattr(item, 'funding_text', None),
+        "cited_references": None, # Search results typically don't have detailed cited refs
         "source_type": "scopus",
         "raw_search_result": raw_data
     }

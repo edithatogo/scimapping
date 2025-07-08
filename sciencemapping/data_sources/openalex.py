@@ -135,8 +135,64 @@ def _parse_openalex_work(item_json: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "document_type": item_json.get('type'),
         "source_type": "openalex",
         "times_cited_openalex": item_json.get('cited_by_count'),
+        "funding_entries": None,    # Initialize
+        "cited_references": None, # Initialize
         "raw_data": item_json
     }
+
+    # --- Extract Cited References ---
+    # OpenAlex provides 'referenced_works', a list of OpenAlex work URLs
+    if "referenced_works" in item_json and isinstance(item_json["referenced_works"], list):
+        ref_ids = []
+        for ref_url in item_json["referenced_works"]:
+            if isinstance(ref_url, str) and "openalex.org/W" in ref_url:
+                ref_id_part = ref_url.split("/")[-1]
+                if ref_id_part:
+                    ref_ids.append(ref_id_part)
+        if ref_ids:
+            parsed["cited_references"] = sorted(list(set(ref_ids)))
+
+    # --- Extract Funding Information ---
+    funding_entries_list: List[Dict[str, Any]] = []
+    if "funders" in item_json and isinstance(item_json["funders"], list):
+        for funder_info_oa in item_json["funders"]:
+            if not isinstance(funder_info_oa, dict):
+                continue
+
+            entry: Dict[str, Any] = {"source_of_info": "openalex_api_funders"}
+            funder_name = funder_info_oa.get("display_name")
+            if funder_name:
+                entry["funder_name"] = str(funder_name)
+
+            funder_ror_id = funder_info_oa.get("ror")
+            if funder_ror_id:
+                entry["funder_ror_id"] = funder_ror_id
+
+            oa_funder_id_full = funder_info_oa.get("id")
+            if oa_funder_id_full and "openalex.org/F" in oa_funder_id_full:
+                 entry["openalex_funder_id"] = oa_funder_id_full.split("/")[-1]
+
+            funder_doi_val = funder_info_oa.get("doi")
+            if funder_doi_val and isinstance(funder_doi_val, str) and funder_doi_val.startswith("10.13039/"):
+                entry["funder_crossref_id"] = funder_doi_val
+
+            grant_ids_for_funder = []
+            if "grants" in funder_info_oa and isinstance(funder_info_oa["grants"], list):
+                for grant_item in funder_info_oa["grants"]:
+                    if isinstance(grant_item, dict) and grant_item.get("award_id"):
+                        grant_ids_for_funder.append(str(grant_item["award_id"]))
+                    elif isinstance(grant_item, str):
+                        grant_ids_for_funder.append(grant_item)
+
+            if grant_ids_for_funder:
+                entry["grant_ids"] = sorted(list(set(grant_ids_for_funder)))
+
+            if entry.get("funder_name") or entry.get("grant_ids"):
+                funding_entries_list.append(entry)
+
+    if funding_entries_list:
+        parsed["funding_entries"] = funding_entries_list
+
     return parsed
 
 if __name__ == "__main__":

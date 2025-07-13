@@ -80,7 +80,7 @@ In this paper, we have presented `scimapper`, a Python library for modular bibli
 
 ### 4.1. Limitations
 
-The `scimapper` library is still under development, and there are a number of limitations that should be aware of. First, the library does not yet support all of the features that are available in other bibliometric analysis tools. For example, it does not yet support all of the data sources that are available in other tools, and it does not yet support all of the analysis methods that are available in other tools. Second, the library has not yet been tested on a wide range of datasets. Third, the library does not yet have a graphical user interface.
+The `scimapper` library is still under development, and there are a number of limitations to be aware of. First, the library does not yet support all of the features that are available in other bibliometric analysis tools. For example, it does not yet support all of the data sources that are available in other tools, and it does not yet support all of the analysis methods that are available in other tools. Second, the library has not yet been tested on a wide range of datasets. Third, the library does not yet have a graphical user interface.
 
 ### 4.2. Future Work
 

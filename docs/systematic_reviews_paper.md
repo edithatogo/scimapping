@@ -31,8 +31,10 @@ The `scimapper` library is composed of three sub-packages:
 In this section, we present a more comprehensive example of how to use the `scimapper` library to perform a co-authorship analysis of a set of PubMed records.
 
 ```python
+# Import the necessary classes and functions
 from scimapper.core import ScienceMapper
 from scimapper.sciwrangler.deduplication import deduplicate_by_title
+from scimapper.sciprocessor.network_analysis import calculate_network_metrics
 
 # Create a ScienceMapper instance
 # This object will orchestrate the entire workflow, from fetching data to analyzing it.
@@ -58,6 +60,14 @@ records = deduplicate_by_title(records)
 # We will use the `analyze` method to perform a co-authorship analysis.
 coauth_net = mapper.analyze("co_authorship")
 
+# Calculate network metrics
+# We will use the `calculate_network_metrics` function to calculate network metrics.
+network_metrics = calculate_network_metrics(coauth_net)
+
+# Print the results
+# The results are a dictionary containing the network metrics.
+print(network_metrics)
+
 # Print the results
 # The results are a dictionary containing the nodes and edges of the network.
 
@@ -66,12 +76,12 @@ print(coauth_net)
 
 ## 4. Conclusion
 
-In this paper, we have presented `scimapper`, a Python library for modular bibliometric analysis. `scimapper` is designed to be extensible and easy to use, and it is composed of three distinct sub-packages: `scisourcer`, for sourcing data; `sciwrangler`, for pre-processing data; and `sciprocessor`, for analyzing data. We believe that `scimapper` will be a valuable tool for the bibliometric research community.
+In this paper, we have presented `scimapper`, a Python library for modular bibliometric analysis. `scimapper` is designed to be extensible and easy to use, and it is composed of three distinct sub-packages: `scisourcer`, for sourcing data; `sciwrangler`, for pre-processing data; and `sciprocessor`, for analyzing data. We believe that `scimapper` will be a valuable tool for the bibliometric research community, and that it will help to address some of the challenges that are associated with bibliometric analysis.
 
 ### 4.1. Limitations
 
-The `scimapper` library is still under development, and there are a number of limitations that should be aware of. First, the library does not yet support all of the features that are available in other bibliometric analysis tools. For example, it does not yet support all of the data sources that are available in other tools, and it does not yet support all of the analysis methods that are available in other tools. Second, the library has not yet been tested on a wide range of datasets. Third, the library does not yet have a graphical user interface.
+The `scimapper` library is still under development, and there are a number of limitations to be aware of. First, the library does not yet support all of the features that are available in other bibliometric analysis tools. For example, it does not yet support all of the data sources that are available in other tools, and it does not yet support all of the analysis methods that are available in other tools. Second, the library has not yet been tested on a wide range of datasets. Third, the library does not yet have a graphical user interface.
 
 ### 4.2. Future Work
 
-We are actively working to address the limitations of the `scimapper` library. We plan to add support for more data sources, including Google Scholar, Semantic Scholar, and patent databases. We also plan to add support for more analysis methods, including bibliographic coupling, co-citation analysis, topic modeling, and burst detection. Finally, we plan to develop a graphical user interface for the library. We welcome contributions from the community, and we hope that `scimapper` will become a valuable resource for the bibliometric research community.
+We are actively working to address the limitations of the `scimapper` library. We plan to add support for more data sources, including Google Scholar, Semantic Scholar, and patent databases. We also plan to add support for more analysis methods, including bibliographic coupling, co-citation analysis, topic modeling, and burst detection. Finally, we plan to develop a graphical user interface for the library. We welcome contributions from the community, and we hope that `scimapper` will become a valuable resource for the bibliometric research community. We believe that `scimapper` has the potential to make a significant contribution to the field of bibliometric analysis, and we look forward to seeing how it is used by the community.

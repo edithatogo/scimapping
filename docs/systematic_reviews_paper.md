@@ -67,6 +67,11 @@ network_metrics = calculate_network_metrics(coauth_net)
 # Print the results
 # The results are a dictionary containing the network metrics.
 print(network_metrics)
+
+# Print the results
+# The results are a dictionary containing the nodes and edges of the network.
+
+print(coauth_net)
 ```
 
 ## 4. Conclusion

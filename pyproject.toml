@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sciencemapping"
+name = "scimapper"
 version = "0.1.0" # Initial version
 description = "A Python library for science mapping and bibliometric analysis."
 readme = "README.md"
@@ -58,15 +58,15 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/sciencemapping" # Placeholder
-Repository = "https://github.com/example/sciencemapping" # Placeholder
-# Documentation = "https://sciencemapping.readthedocs.io/" # Placeholder
+Homepage = "https://github.com/example/scimapper" # Placeholder
+Repository = "https://github.com/example/scimapper" # Placeholder
+# Documentation = "https://scimapper.readthedocs.io/" # Placeholder
 
 [tool.setuptools.packages.find]
 where = ["."] # Look for packages in the current directory
-include = ["sciencemapping*"]  # Include the sciencemapping package and its submodules
+include = ["scimapper*"]  # Include the scimapper package and its submodules
 exclude = ["tests*", "examples*"] # Exclude tests and examples from the package distribution
 
 # If using setuptools_scm for versioning from git tags (optional, requires setuptools_scm in build-system.requires)
 # [tool.setuptools_scm]
-# write_to = "sciencemapping/_version.py"
+# write_to = "scimapper/_version.py"

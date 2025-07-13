@@ -1,10 +1,5 @@
-# Sciencemapping Utilities
-# This package may contain helper functions, enrichment services, etc.
+# __init__.py for the sciwrangler subpackage
 
-# Optionally, make specific utility functions directly available
-# from .enrichment import enrich_records_with_crossref_funding
-# from .other_utils import some_other_utility
-# etc.
-# For now, keeping it simple. Users can import from submodules directly.
-# (e.g., from sciencemapping.utils.enrichment import ...)
-__all__ = [] # No direct exports from 'from sciencemapping.utils import *' by default
+# Import the main function from each module
+from .enrichment import enrich_records_with_crossref_funding
+from .affiliation_parser import extract_affiliations

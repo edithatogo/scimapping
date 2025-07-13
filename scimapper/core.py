@@ -9,6 +9,7 @@ from .sciprocessor.pybibx_analyzer import PybibxAnalyzer
 
 # Import enrichment utilities
 from .sciwrangler.enrichment import enrich_records_with_crossref_funding, HABANERO_AVAILABLE as CROSSREF_CLIENT_AVAILABLE
+from .sciwrangler.affiliation_parser import extract_affiliations
 
 # Define types for clarity
 DataSourceName = Literal["pubmed", "scopus_api", "wos_file", "dimensions_api", "openalex_api"]
@@ -188,6 +189,13 @@ class ScienceMapper:
         self._records = enrich_records_with_crossref_funding(self._records, mailto=mailto_to_use)
 
         print(f"Core: CrossRef enrichment process completed. {len(self._records)} records processed.")
+        return self
+
+    def extract_affiliations(self) -> 'ScienceMapper':
+        """
+        Extract affiliation data from the records.
+        """
+        self._records = extract_affiliations(self._records)
         return self
 
     def fetch_full_text(self, doi: str) -> Optional[str]:

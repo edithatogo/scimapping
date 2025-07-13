@@ -53,3 +53,4 @@ The [CrossRef API](https://www.crossref.org/documentation/retrieve-metadata/rest
 *   **License Information:** The CrossRef API can be used to get information about the license under which an article is published.
 *   **Full Text Links:** The CrossRef API can be used to get links to the full text of an article.
 *   **Event Data:** The CrossRef API can be used to get information about events that are related to an article, such as news articles, blog posts, and social media mentions.
+*   **Affiliation Data:** The CrossRef API can be used to get information about the affiliations of the authors of an article. This can be used to identify the institutions that are most active in a particular research field.

@@ -10,6 +10,7 @@ from .sciprocessor.pybibx_analyzer import PybibxAnalyzer
 # Import enrichment utilities
 from .sciwrangler.enrichment import enrich_records_with_crossref_funding, HABANERO_AVAILABLE as CROSSREF_CLIENT_AVAILABLE
 from .sciwrangler.affiliation_parser import extract_affiliations
+from .sciwrangler.author_parser import parse_author_names
 
 # Define types for clarity
 DataSourceName = Literal["pubmed", "scopus_api", "wos_file", "dimensions_api", "openalex_api"]
@@ -196,6 +197,13 @@ class ScienceMapper:
         Extract affiliation data from the records.
         """
         self._records = extract_affiliations(self._records)
+        return self
+
+    def parse_author_names(self) -> 'ScienceMapper':
+        """
+        Parse author names into first and last names.
+        """
+        self._records = parse_author_names(self._records)
         return self
 
     def fetch_full_text(self, doi: str) -> Optional[str]:

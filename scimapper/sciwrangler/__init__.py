@@ -3,3 +3,4 @@
 # Import the main function from each module
 from .enrichment import enrich_records_with_crossref_funding
 from .affiliation_parser import extract_affiliations
+from .author_parser import parse_author_names

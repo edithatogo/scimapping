@@ -18,6 +18,7 @@ To create a modular, comprehensive, user-friendly, and extensible Python ecosyst
     *   [X] Create the `sciprocessor` sub-package for bibliometric analysis.
     *   [X] Update the `core.py` module and all tests to reflect the new structure.
     *   [ ] Update all documentation to reflect the new structure and vision.
+    *   [ ] Investigate EndNote parsing.
 *   **Status:** In Progress.
 
 ### Phase 2: Documentation, Protocol, and Research (Next)

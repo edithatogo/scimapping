@@ -7,3 +7,5 @@ from .wos import parse_wos_file
 from .dimensions import search_dimensions_api
 from .openalex import search_openalex_works
 from .unpaywall import search_unpaywall
+from .bibtex import parse_bibtex_file
+from .ris import parse_ris_file

@@ -38,6 +38,9 @@ dependencies = [
     "spacy>=3.0", # For NLP in FundingAnalyzer
     "habanero>=1.2.0", # For CrossRef API client (example version, check latest)
     "gender-guesser>=0.4.0", # For gender inference (example version, check latest)
+    "bibtexparser>=1.2.0",
+    "rispy>=0.3",
+    "endnote-parser>=0.1.0",
     # Note: pybliometrics for Scopus is also a key dependency but has caused issues.
     # Add it here once those are resolvable or if a stable version is confirmed.
     # "pybliometrics>=4.0"

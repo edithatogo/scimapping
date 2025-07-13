@@ -104,8 +104,9 @@ class TestScienceMapper(unittest.TestCase):
             self.mapper.fetch_data(source="wos_file") # Missing file_path
 
 
-    @patch('scimapper.sciprocessor.pybibx_analyzer.PybibxAnalyzer')
-    def test_analyze_co_authorship(self, MockPybibxAnalyzer):
+    @patch('scimapper.sciprocessor.pybibx_analyzer.PYBIBX_AVAILABLE', True)
+    @patch('scimapper.sciprocessor.pybibx_analyzer.pybibx')
+    def test_analyze_co_authorship(self, mock_pybibx_module, mock_pybibx_available):
         # Setup mock analyzer instance and its method
         """
         Tests that the co-authorship network analysis is performed correctly using the mocked PybibxAnalyzer, with the expected threshold and records.
@@ -122,8 +123,9 @@ class TestScienceMapper(unittest.TestCase):
         mock_analyzer_instance.co_authorship_network.assert_called_once_with(author_threshold=2)
         self.assertEqual(result, MOCK_COAUTH_RESULT)
 
-    @patch('scimapper.sciprocessor.pybibx_analyzer.PybibxAnalyzer')
-    def test_analyze_keyword_cooccurrence(self, MockPybibxAnalyzer):
+    @patch('scimapper.sciprocessor.pybibx_analyzer.PYBIBX_AVAILABLE', True)
+    @patch('scimapper.sciprocessor.pybibx_analyzer.pybibx')
+    def test_analyze_keyword_cooccurrence(self, mock_pybibx_module, mock_pybibx_available):
         """
         Tests that the 'analyze' method correctly performs keyword co-occurrence analysis using the PybibxAnalyzer mock, passing the appropriate threshold and returning the expected result.
         """
@@ -137,8 +139,9 @@ class TestScienceMapper(unittest.TestCase):
         mock_analyzer_instance.keyword_cooccurrence_network.assert_called_once_with(keyword_threshold=5)
         self.assertEqual(result, MOCK_KW_RESULT)
 
-    @patch('scimapper.sciprocessor.pybibx_analyzer.PybibxAnalyzer')
-    def test_analyze_citation(self, MockPybibxAnalyzer):
+    @patch('scimapper.sciprocessor.pybibx_analyzer.PYBIBX_AVAILABLE', True)
+    @patch('scimapper.sciprocessor.pybibx_analyzer.pybibx')
+    def test_analyze_citation(self, mock_pybibx_module, mock_pybibx_available):
         """
         Test that the citation analysis method is called correctly and returns the expected result when analyzing loaded records.
         """
@@ -181,7 +184,8 @@ class TestScienceMapper(unittest.TestCase):
         self.assertEqual(self.mapper.get_records(), [])
 
     @patch('scimapper.scisourcer.pubmed.search_pubmed', return_value=MOCK_PUBMED_RECORDS)
-    def test_chaining_fetch_and_analyze(self, mock_search_pubmed):
+    @patch('scimapper.sciprocessor.pybibx_analyzer.PybibxAnalyzer')
+    def test_chaining_fetch_and_analyze(self, MockPybibxAnalyzer, mock_search_pubmed):
          """
          Test that data fetching and analysis can be chained, verifying correct integration between fetch and analyze methods.
          
@@ -262,6 +266,28 @@ class TestScienceMapper(unittest.TestCase):
         records = self.mapper.get_records()
         self.assertEqual(records[0]["affiliations"], ["University of Science", "Institute of Technology"])
         self.assertNotIn("affiliations", records[1])
+
+    def test_parse_author_names(self):
+        """
+        Test that `parse_author_names` successfully parses author names.
+        """
+        self.mapper._records = [
+            {
+                "authors": [
+                    "Doe, J.",
+                    "Smith, A."
+                ]
+            },
+            {
+                "authors": [
+                    "Lee, C."
+                ]
+            }
+        ]
+        self.mapper.parse_author_names()
+        records = self.mapper.get_records()
+        self.assertEqual(records[0]["authors"], [{"lastname": "Doe", "firstname": "J."}, {"lastname": "Smith", "firstname": "A."}])
+        self.assertEqual(records[1]["authors"], [{"lastname": "Lee", "firstname": "C."}])
 
 if __name__ == '__main__':
     unittest.main()

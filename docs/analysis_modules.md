@@ -49,6 +49,7 @@ The `sciencemapping` library includes several modules for performing bibliometri
         *   Method: `citation_analysis() -> Optional[PybibxCitationAnalysisOutput]`
         *   *Conceptual `pybibx` path*: Calls a hypothetical `pybibx.analysis.citation_summary`.
         *   *Output Structure*: Returns a `PybibxCitationAnalysisOutput` dictionary including metrics like total citations, paper counts, H-index (placeholder might be `None`), average citations, and a list of top-cited papers (each as `PybibxCitedPaper`).
+
 *   **Usage**:
     ```python
     from sciencemapping.analysis.pybibx_analyzer import PybibxAnalyzer
@@ -82,6 +83,7 @@ The `sciencemapping` library includes several modules for performing bibliometri
         *   **Placeholder Fallback**: If no custom map entry and `gender-guesser` is unavailable/fails, placeholder logic is used.
         *   **Output**: Returns a list of dictionaries: `{"name": str, "first_name_used_for_guess": Optional[str], "inferred_gender": str, "gender_source": str}`. The `gender_source` indicates the origin (e.g., "custom_map_full_name", "custom_map_first_name", "gender_guesser", "placeholder").
     *   `get_gender_distribution_stats()`: Calculates and returns a dictionary with counts for each `inferred_gender` category.
+
 *   **Ethical Considerations & Limitations**:
     *   **Probabilistic Nature**: Name-based gender inference (including `gender-guesser`) is probabilistic and not deterministic. Accuracy varies significantly based on name origin, cultural context, and the coverage of the underlying name database.
     *   **Bias**: Name databases can have inherent biases (e.g., towards Western names).

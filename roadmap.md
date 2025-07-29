@@ -1,59 +1,89 @@
-# scimapper Library Roadmap
+# Sciencemapping Library Roadmap
 
-This document outlines the strategic roadmap for the development of the `scimapper` Python library and its conceptual sub-modules: `scisourcer`, `sciwrangler`, and `sciprocessor`.
+This document outlines the strategic roadmap for the development of the `sciencemapping` Python library. It complements the more granular tasks listed in `docs/todo.md`.
 
 ## Project Vision
 
-To create a modular, comprehensive, user-friendly, and extensible Python ecosystem for conducting bibliometric analysis and science mapping. This modularity will allow researchers to use the entire `scimapper` library for end-to-end workflows or to incorporate individual components (`scisourcer`, `sciwrangler`, `sciprocessor`) into other projects.
+To create a comprehensive, user-friendly, and extensible Python library for conducting bibliometric analysis and science mapping, enabling researchers to easily gather, analyze, and visualize scientific literature data from diverse sources.
 
 ## Key Development Phases
 
-### Phase 1: Refactoring and Project Restructure (In Progress)
+### Phase 1: Core Foundation & Data Sourcing (Partially Complete)
 
-*   **Goal:** Refactor the existing `sciencemapping` library into the new `scimapper` project structure with three distinct sub-modules.
+*   **Goal:** Establish the basic project structure, core API, and implement data sourcing from key bibliographic databases.
 *   **Key Deliverables:**
-    *   [X] Rename the project to `scimapper`.
-    *   [X] Create the `scisourcer` sub-package for data sourcing.
-    *   [X] Create the `sciwrangler` sub-package for data parsing and pre-processing.
-    *   [X] Create the `sciprocessor` sub-package for bibliometric analysis.
-    *   [X] Update the `core.py` module and all tests to reflect the new structure.
-    *   [ ] Update all documentation to reflect the new structure and vision.
-*   **Status:** In Progress.
+    *   [X] Initial project structure (`sciencemapping` package, `tests`, `docs`, `examples`).
+    *   [X] `ScienceMapper` core class for orchestrating workflows.
+    *   [X] Data sourcing modules for:
+        *   [X] PubMed (API) - *Tests Passing*
+        *   [X] Web of Science (File Parsing) - *Tests Passing*
+        *   [C] Scopus (API via `pybliometrics`) - *Core logic implemented; tests blocked by environment/dependency issues.*
+        *   [C] Dimensions (API via `dimcli`) - *Core logic and tests written; tests blocked by environment/ModuleNotFoundError.*
+        *   [C] OpenAlex (API via `openalex`) - *Core logic and tests written; tests blocked by environment/ModuleNotFoundError.*
+    *   [X] Initial common internal data format for records.
+    *   [X] Basic documentation (README, initial docs structure).
+    *   [X] Packaging setup (`pyproject.toml`).
+*   **Status:** Substantially complete, with noted issues in testing for some data source modules due to sandbox environment constraints.
 
-### Phase 2: Documentation, Protocol, and Research (Next)
+### Phase 2: Core Analysis Engine & Initial Enhancements (Current Focus)
 
-*   **Goal:** Establish a robust documentation and development protocol, and conduct exhaustive research for each module.
+*   **Goal:** Integrate a core bibliometric analysis engine (`pybibx`) and begin implementing specialized analysis modules for identified gaps (funding, gender). Enhance data quality through enrichment (CrossRef).
 *   **Key Deliverables:**
-    *   [ ] Create and maintain a `CHANGELOG.md` and a session log.
-    *   [ ] Develop a detailed protocol for the creation, review, and improvement of each module, following an academic review cycle.
-    *   [ ] Conduct exhaustive research to identify additional data sources for `scisourcer`.
-    *   [ ] Research best practices for data pre-processing, deduplication, and parsing for `sciwrangler`.
-    *   [ ] Research advanced bibliometric and scientometric analysis techniques for `sciprocessor`.
-*   **Status:** Planned.
+    *   [P] **Full `pybibx` Integration:** (Currently conceptual)
+        *   [P] Refine `PybibxAnalyzer` with concrete (mocked) `pybibx` API calls and data transformations. - *Done conceptually*
+        *   [_] Actual `pybibx` library testing, installation, and direct integration (environment permitting).
+    *   [P] **Robust Funding Data:**
+        *   [P] Enhance `FundingAnalyzer` with NLP (`spaCy`) for extracting from acknowledgements. - *Initial NLP version done*
+        *   [P] **CrossRef Integration for Funding Data Enrichment.**
+            *   [X] Initial enrichment service implemented.
+            *   [X] Refined to merge data into common `funding_entries` field.
+        *   [P] Enhance data source parsers for better structured funding data extraction. - *Initial pass completed; further refinement & testing needed.*
+    *   [X] **Gender Analysis Module:**
+        *   [X] Conceptual `GenderAnalyzer` with placeholder logic.
+        *   [X] Integrated `gender-guesser`.
+    *   [X] Refine common data format:
+        *   [X] Defined and implemented `funding_entries` in parsers (initial pass and refinements).
+        *   [X] Defined and implemented `cited_references` in parsers (initial pass and refinements, including DOI/WoS ID prioritization in WoS).
+    *   [P] Expand unit test coverage and address existing test execution blockers if environment allows. - *Ongoing, some tests still blocked.*
+*   **Status:** In Progress. Key data structures (`funding_entries`, `cited_references`) defined and parsers iteratively refined. Conceptual `pybibx` and initial Gender/Funding analyzers are in place. CrossRef enrichment added.
 
-### Phase 3: Advanced Analysis, Visualization, and Usability
+### Phase 3: Advanced Analysis & Visualization
 
-*   **Goal:** Implement advanced features, visualization, and improve usability.
+*   **Goal:** Implement more advanced bibliometric analysis techniques and provide basic visualization capabilities.
 *   **Key Deliverables (Examples):**
-    *   [ ] Implement advanced analysis types (e.g., bibliographic coupling, co-citation analysis, topic modeling).
-    *   [ ] Integrate with visualization libraries (e.g., `Matplotlib`, `Plotly`, `NetworkX`).
-    *   [ ] Add data export functions (e.g., CSV, Excel, JSON, GEXF).
-    *   [ ] Develop comprehensive API documentation and tutorials.
-*   **Status:** Planned.
+    *   [ ] Bibliographic coupling analysis.
+    *   [ ] Co-citation analysis (requires `cited_references` data).
+    *   [ ] Thematic analysis / Topic modeling on abstracts/keywords.
+    *   [ ] Burst detection for trends.
+    *   [ ] Basic network visualization (e.g., using NetworkX with Matplotlib, or wrappers for tools like Gephi).
+    *   [ ] Basic chart generation for statistical summaries.
+    *   [ ] Further development of Gender and Funding analysis modules with more sophisticated techniques.
 
-### Phase 4: Publication and Community Engagement
+### Phase 4: Usability, Export, and Robustness
 
-*   **Goal:** Prepare for publication and foster a community around the `scimapper` ecosystem.
-*   **Key Deliverables:**
-    *   [ ] Create example use cases and tutorials.
-    *   [ ] Write a paper for submission to the journal "Systematic Reviews".
-    *   [ ] Go through an iterative internal review process for the paper.
-    *   [ ] Establish clear contribution guidelines and community support channels.
-*   **Status:** Planned.
+*   **Goal:** Improve the overall usability of the library, add data export features, and enhance robustness.
+*   **Key Deliverables (Examples):**
+    *   [ ] Data export functions (CSV, Excel, JSON, GEXF for networks).
+    *   [ ] Comprehensive API documentation (e.g., Sphinx-generated).
+    *   [ ] More example workflows and tutorials (Jupyter notebooks).
+    *   [ ] Robust configuration management for API keys and settings.
+    *   [ ] Caching mechanisms for API calls.
+    *   [ ] Enhanced logging throughout the library.
+    *   [ ] Potential Command-Line Interface (CLI).
+
+### Phase 5: Community & Ecosystem
+
+*   **Goal:** Foster community engagement and explore integrations with other relevant tools.
+*   **Key Deliverables (Examples):**
+    *   [ ] Clear contribution guidelines and community support channels.
+    *   [ ] Publication / Dissemination (e.g., JOSS paper, conference presentation).
+    *   [ ] Exploration of integration with workflow tools or data visualization platforms.
 
 ---
 **Legend:**
 *   [X] Complete
+*   [P] Partially Complete / In Progress (foundational work done)
+*   [C] Conceptual Implementation / Code Written (testing blocked/incomplete)
 *   [ ] To Do / Planned
 ---
 

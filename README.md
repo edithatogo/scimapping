@@ -12,6 +12,8 @@ The primary goal of this library is to provide a comprehensive toolkit for:
     *   Web of Science
     *   Dimensions
     *   OpenAlex
+    *   Google Scholar (with caveats)
+
 *   **Analyzing Data:** Utilizing tools like `pybibx` to perform various bibliometric and science mapping analyses.
 
 ## Features (Planned)

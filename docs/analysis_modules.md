@@ -5,44 +5,51 @@ The `sciencemapping` library includes several modules for performing bibliometri
 ## 1. `PybibxAnalyzer`
 
 *   **Module**: `sciencemapping.analysis.pybibx_analyzer.PybibxAnalyzer`
-*   **Purpose**: This class serves as an interface to the `pybibx` library for performing bibliometric analyses.
-*   **Current Status & `pybibx` Integration (Conceptual)**:
-    *   The `PybibxAnalyzer` is designed to use `pybibx` if the library is installed and available.
-    *   **Corpus Initialization**: When initialized, `PybibxAnalyzer` attempts to convert the input records (in the library's common internal format) into a format suitable for `pybibx.Corpus`. This involves conceptual mapping of field names (e.g., `title` to `TI`, `authors` to `AU`, `keywords` to `DE`, `year` to `PY`, coalesced citation counts to `TC`, and `cited_references` to `CR`).
+*   **Purpose**: This class serves as an interface to a conceptual `pybibx` library for performing bibliometric analyses.
+*   **`pybibx` Integration & Data Structures (Conceptual)**:
+    *   The `PybibxAnalyzer` is designed to conceptually interact with a `pybibx` library.
+    *   **Input Data Format (`PybibxRecordInput`)**: When initialized, `PybibxAnalyzer` conceptually transforms the input records (which are in the library's common internal format) into a list of records, where each record conforms to the `PybibxRecordInput` TypedDict. This structure includes fields like:
+        *   `id: str` (e.g., DOI or a generated internal ID)
+        *   `title: Optional[str]`
+        *   `authors: Optional[List[str]]`
+        *   `year: Optional[int]`
+        *   `keywords: Optional[List[str]]`
+        *   `references: Optional[List[str]]` (IDs of cited works)
+        *   `source_journal: Optional[str]`
+        *   `abstract: Optional[str]`
+        This list of `PybibxRecordInput` dictionaries would then (conceptually) be used to initialize a `pybibx.Corpus`.
         ```python
-        # Conceptual mapping within PybibxAnalyzer for pybibx.Corpus
-        # mapped_rec = {
-        #     "TI": record.get("title"), "AU": record.get("authors"),
-        #     "DE": record.get("keywords"), "PY": record.get("year"),
-        #     "TC": record.get("times_cited_..."), # Coalesced
-        #     "CR": record.get("cited_references")
-        #     # ... other relevant WoS-like tags pybibx might expect
-        # }
-        # self.pybibx_corpus = pybibx.Corpus(mapped_pybibx_records)
+        # Conceptual transformation to PybibxRecordInput:
+        # for rec in self.records:
+        #     mapped_rec: PybibxRecordInput = {
+        #         "id": rec.get("doi") or f"internal_id_{...}",
+        #         "title": rec.get("title"),
+        #         # ... other fields ...
+        #     }
+        #     pybibx_input_records.append(mapped_rec)
+        # self.pybibx_corpus = pybibx.Corpus(pybibx_input_records) # Conceptual
         ```
-    *   **Fallback Mechanism**: If `pybibx` is not found, or if any step in initializing or using `pybibx` fails (e.g., `pybibx.Corpus()` instantiation, or an analysis call like `pybibx.analysis.coauthorship()`), the analyzer gracefully falls back to using **internal placeholder logic** for the requested analysis. It will print informative messages indicating whether `pybibx` (conceptual) or placeholder logic was used.
-*   **Key Analysis Methods (Conceptual `pybibx` API Usage & Placeholders)**:
+    *   **Output Data Formats (`TypedDict`s)**: The analysis methods are designed to return structured outputs defined by TypedDicts:
+        *   `PybibxNetworkNode`: `{'id': str, 'label': str, 'size': int}`
+        *   `PybibxNetworkEdge`: `{'source': str, 'target': str, 'weight': int}`
+        *   `PybibxNetworkOutput`: `{'nodes': List[PybibxNetworkNode], 'edges': List[PybibxNetworkEdge], 'type': str}`
+        *   `PybibxCitedPaper`: `{'id': str, 'title': Optional[str], 'citations': Optional[int]}`
+        *   `PybibxCitationAnalysisOutput`: Contains fields like `total_citations_in_corpus`, `papers_with_citation_data`, `h_index_corpus`, `average_citations_per_paper`, and `top_cited_papers: List[PybibxCitedPaper]`.
+    *   **Fallback Mechanism**: If the `pybibx` library is not found (as is currently the case since it's conceptual), or if any step in using it were to fail, the analyzer gracefully falls back to using **internal placeholder logic**. This placeholder logic also aims to return data in the defined `TypedDict` output structures.
+*   **Key Analysis Methods**:
     *   **Co-authorship Network Analysis**:
-        *   Method: `co_authorship_network(author_threshold: int = 1)`
-        *   *Conceptual `pybibx` path*:
-            *   Calls `pybibx.analysis.coauthorship(self.pybibx_corpus, threshold=author_threshold)`.
-            *   Assumes this returns a tuple: `(nodes, edges)`, where `nodes` is a list of author names, and `edges` is a list of tuples like `(author1, author2, weight)`.
-            *   These raw results are transformed by `_transform_pybibx_network_output` into the standard `{"nodes": [{"id": ...}], "edges": [{"source": ..., "target": ..., "weight": ...}], "type": "co-authorship"}` format.
-        *   *Fallback*: Generates a basic co-authorship network using internal logic.
+        *   Method: `co_authorship_network(author_threshold: int = 1) -> Optional[PybibxNetworkOutput]`
+        *   *Conceptual `pybibx` path*: Calls a hypothetical `pybibx.analysis.coauthorship` and transforms its output.
+        *   *Output Structure*: Returns a `PybibxNetworkOutput` dictionary. Nodes represent authors (id/label: author name, size: publication count). Edges represent co-authorships with weights.
     *   **Keyword Co-occurrence Network Analysis**:
-        *   Method: `keyword_cooccurrence_network(keyword_threshold: int = 1)`
-        *   *Conceptual `pybibx` path*:
-            *   Calls `pybibx.analysis.keywords(self.pybibx_corpus, method="cooccurrence", threshold=keyword_threshold)`.
-            *   Assumes this returns `(nodes, edges)` similar to co-authorship, but with keywords.
-            *   Results are transformed by `_transform_pybibx_network_output`.
-        *   *Fallback*: Generates a basic keyword co-occurrence network.
+        *   Method: `keyword_cooccurrence_network(keyword_threshold: int = 1) -> Optional[PybibxNetworkOutput]`
+        *   *Conceptual `pybibx` path*: Calls a hypothetical `pybibx.analysis.keywords` and transforms its output.
+        *   *Output Structure*: Returns a `PybibxNetworkOutput` dictionary. Nodes represent keywords (id/label: keyword, size: occurrence frequency). Edges represent co-occurrences with weights.
     *   **Citation Analysis**:
-        *   Method: `citation_analysis()`
-        *   *Conceptual `pybibx` path*:
-            *   Calls `pybibx.analysis.citation_summary(self.pybibx_corpus, top_n=10)`.
-            *   Assumes this returns a dictionary with keys like `total_papers_analyzed`, `papers_with_citations`, `top_cited_documents` (a list of dicts, each with `title`, `doi`, `pybibx_citations`).
-            *   These raw results are transformed into the library's standard format: `{"most_cited_papers": [{"title": ..., "doi": ..., "citations": ...}], "total_papers_with_citation_data": ..., "raw_pybibx_summary": ...}`.
-        *   *Fallback*: Calculates basic citation statistics from available `times_cited_...` fields in the input records.
+        *   Method: `citation_analysis() -> Optional[PybibxCitationAnalysisOutput]`
+        *   *Conceptual `pybibx` path*: Calls a hypothetical `pybibx.analysis.citation_summary`.
+        *   *Output Structure*: Returns a `PybibxCitationAnalysisOutput` dictionary including metrics like total citations, paper counts, H-index (placeholder might be `None`), average citations, and a list of top-cited papers (each as `PybibxCitedPaper`).
+
 *   **Usage**:
     ```python
     from sciencemapping.analysis.pybibx_analyzer import PybibxAnalyzer
@@ -61,25 +68,22 @@ The `sciencemapping` library includes several modules for performing bibliometri
 *   **Module**: `sciencemapping.analysis.gender_analyzer.GenderAnalyzer`
 *   **Purpose**: Provides tools for inferring gender from author names and calculating basic gender distribution statistics.
 *   **Current Status & `gender-guesser` Integration**:
-    *   The `GenderAnalyzer` now integrates the `gender-guesser` Python library for name-based gender inference.
-    *   **Initialization**: When `GenderAnalyzer` is initialized, it attempts to import and initialize `gender_guesser.detector.Detector(case_sensitive=False)`.
-    *   **Fallback Mechanism**: If the `gender-guesser` library is not installed or if its detector fails to initialize, the analyzer issues a warning and gracefully falls back to using an internal **placeholder logic** for gender inference.
-    *   Informative print messages indicate whether `gender-guesser` or placeholder logic is active.
+    *   The `GenderAnalyzer` integrates the `gender-guesser` Python library for name-based gender inference.
+    *   **Initialization**:
+        *   When `GenderAnalyzer` is initialized (`__init__(self, records, name_field="authors", custom_gender_map=None)`), it accepts an optional `custom_gender_map` (a dictionary mapping names to gender categories, e.g., `{"Firstname Lastname": "female", "AnotherFirstName": "nonbinary"}`).
+        *   It attempts to initialize `gender_guesser.detector.Detector(case_sensitive=False)`.
+    *   **Fallback Mechanism**: If `gender-guesser` is not installed/fails to initialize, a warning is issued, and it falls back to internal placeholder logic for names not in the custom map.
+    *   Informative messages indicate the active gender inference method.
 *   **Key Methods**:
-    *   `_get_first_name(full_name: str)`: Helper method to extract a potential first name from a full author name string. This first name is then used as input for `gender-guesser`.
+    *   `_get_first_name(full_name: str)`: Helper to extract a potential first name.
     *   `infer_author_genders()`:
-        *   *If `gender-guesser` available*: Calls `gender_detector.get_gender(first_name)` for each author. The direct output from `gender-guesser` is used as the `inferred_gender`. These categories include:
-            *   `female`
-            *   `mostly_female`
-            *   `male`
-            *   `mostly_male`
-            *   `andy` (androgynous)
-            *   `unknown` (name not found in its database or gender indeterminate)
-            *   `name_not_found` (if applicable, though often maps to `unknown`)
-        *   Handles errors during `gender-guesser` calls by assigning `'error_in_guessing'`.
-        *   *Fallback*: Uses a simplistic rule-based placeholder if `gender-guesser` is unavailable.
-        *   Returns: A list of dictionaries, each containing the original `name`, `first_name_used_for_guess`, and the `inferred_gender`.
-    *   `get_gender_distribution_stats()`: Calculates and returns a dictionary with counts for each `inferred_gender` category produced by `infer_author_genders()`.
+        *   **Priority for Custom Map**: First checks if the full author name, then the extracted first name (case-insensitively for first names), exists in the `custom_gender_map`. If so, the custom gender is used.
+        *   **`gender-guesser` Usage**: If not found in the custom map and `gender-guesser` is available, it calls `gender_detector.get_gender(first_name)`. Direct output categories from `gender-guesser` are used (e.g., `female`, `male`, `andy`, `unknown`, `mostly_female`, `mostly_male`).
+        *   **Error Handling**: Errors from `gender-guesser` calls result in `'error_in_guessing'`.
+        *   **Placeholder Fallback**: If no custom map entry and `gender-guesser` is unavailable/fails, placeholder logic is used.
+        *   **Output**: Returns a list of dictionaries: `{"name": str, "first_name_used_for_guess": Optional[str], "inferred_gender": str, "gender_source": str}`. The `gender_source` indicates the origin (e.g., "custom_map_full_name", "custom_map_first_name", "gender_guesser", "placeholder").
+    *   `get_gender_distribution_stats()`: Calculates and returns a dictionary with counts for each `inferred_gender` category.
+
 *   **Ethical Considerations & Limitations**:
     *   **Probabilistic Nature**: Name-based gender inference (including `gender-guesser`) is probabilistic and not deterministic. Accuracy varies significantly based on name origin, cultural context, and the coverage of the underlying name database.
     *   **Bias**: Name databases can have inherent biases (e.g., towards Western names).
